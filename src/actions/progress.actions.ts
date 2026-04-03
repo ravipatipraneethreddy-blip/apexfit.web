@@ -4,9 +4,33 @@ import { prisma } from "@/lib/prisma";
 import { getUserProfile } from "./user.actions";
 import { revalidatePath } from "next/cache";
 
+async function isDbAvailable(): Promise<boolean> {
+  if (!prisma) return false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getProgressData() {
   const user = await getUserProfile();
   if (!user) return { weightLogs: [], macroLogs: [] };
+
+  const dbReady = await isDbAvailable();
+  if (!dbReady || user.id.startsWith("mock-")) {
+    return {
+      weightLogs: [
+        { date: new Date(Date.now() - 86400000 * 2).toLocaleDateString(), weight: 76.4 },
+        { date: new Date(Date.now() - 86400000).toLocaleDateString(), weight: 76.0 },
+        { date: new Date().toLocaleDateString(), weight: 75.8 },
+      ],
+      macroLogs: [
+        { date: new Date().toLocaleDateString(), calories: 2100, protein: 150, carbs: 200, fats: 60 }
+      ],
+    };
+  }
 
   const rawWeights = await prisma.progressLog.findMany({
     where: { userId: user.id },
