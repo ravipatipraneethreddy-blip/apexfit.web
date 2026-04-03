@@ -2,8 +2,13 @@ import { getRecentWorkouts, getPreviousExerciseData, getWorkoutTemplates, getWor
 import { getUserProfile } from "@/actions/user.actions";
 import WorkoutClient from "./workout-client";
 
+import { redirect } from "next/navigation";
+
 export default async function WorkoutPage() {
   const user = await getUserProfile();
+  if (!user) {
+    redirect("/onboarding");
+  }
   const recentWorkouts = await getRecentWorkouts();
   const previousData = await getPreviousExerciseData();
   const dbTemplates = await getWorkoutTemplates();
