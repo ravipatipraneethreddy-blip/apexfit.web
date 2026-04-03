@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  passwordHash   String
+  name           String?
+  gender         String?       // MALE, FEMALE
+  age            Int
+  height         Float         // in cm
+  weight         Float         // in kg
+  targetWeight   Float?
+  goal           String        // FAT_LOSS, MUSCLE_GAIN, RECOMP
+  dietPreference String        // e.g., ANDHRA_STYLE, VEGAN
+  activityLevel  String
+  streakDays     Int           @default(0)
+
+  // TDEE calculated targets
+  targetCalories Int?
+  targetProtein  Int?
+  targetCarbs    Int?
+  targetFats     Int?
+
+  createdAt      DateTime      @default(now())
+  // Relations
+  meals          MealLog[]
+  workouts       WorkoutLog[]
+  progress       ProgressLog[]
+  achievements   Achievement[]
+  templates      WorkoutTemplate[]
+  subscriptions  PushSubscription[]
+}
+
+model MealLog {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @default(now())
+  foodName  String
+  calories  Int
+  protein   Float
+  carbs     Float
+  fats      Float
+  planned   Boolean  @default(false) // If true, it's a future plan, not yet eaten.
+  
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model WorkoutLog {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @default(now())
+  name      String   // e.g., "Pull Day"
+  
+  exercises ExerciseLog[]
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ExerciseLog {
+  id           String      @id @default(uuid())
+  workoutLogId String
+  name         String      // e.g., "Barbell Curl"
+  sets         Int
+  reps         Int
+  weight       Float       // in kg
+  
+  workoutLog   WorkoutLog  @relation(fields: [workoutLogId], references: [id])
+}
+
+model ProgressLog {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime @default(now())
+  weight      Float
+  bodyFatPct  Float?
+  photoUrl    String?
+  
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Achievement {
+  id         String   @id @default(uuid())
+  userId     String
+  badgeId    String   // e.g., 'FIRST_WORKOUT', '7_DAY_STREAK', '100KG_CLUB'
+  unlockedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, badgeId])
+}
+
+model WorkoutTemplate {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   // e.g., "Push Day v1"
+  createdAt DateTime @default(now())
+
+  exercises TemplateExercise[]
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model TemplateExercise {
+  id           String          @id @default(uuid())
+  templateId   String
+  name         String
+  sets         Int
+  reps         Int
+
+  template     WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
