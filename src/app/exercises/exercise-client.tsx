@@ -36,6 +36,7 @@ export default function ExerciseLibraryClient({
     }
     // Only fetch if it's different from the initial load
     fetchFiltered();
+  }, [debouncedSearch, activeBodyPart]);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
