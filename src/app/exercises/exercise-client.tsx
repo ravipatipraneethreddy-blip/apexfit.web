@@ -5,7 +5,7 @@ import { ArrowLeft, Search, Dumbbell, Target, Info } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useDebounce } from "@/lib/use-debounce";
-import { getExercises } from "@/actions/exercise.actions";
+import { getExercises, checkAndSeedExercises } from "@/actions/exercise.actions";
 
 export default function ExerciseLibraryClient({
   user,
@@ -42,8 +42,6 @@ export default function ExerciseLibraryClient({
     setIsSyncing(true);
     setSyncError(null);
     try {
-      // @ts-ignore
-      const { checkAndSeedExercises } = await import("@/actions/exercise.actions");
       const result = await checkAndSeedExercises();
       if (result.error) {
         setSyncError(result.error);

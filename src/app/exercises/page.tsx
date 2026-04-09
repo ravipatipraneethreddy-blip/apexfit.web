@@ -11,17 +11,19 @@ export default async function ExerciseLibraryPage() {
     redirect("/onboarding");
   }
 
-  // Load cached exercises safely
   const initialExercises = await getExercises("", "All", 50);
   const bodyParts = await getAllBodyParts();
   
   // Checking count to inject the manual sync button if empty
   const needsSync = initialExercises.length < 10;
 
+  // Next.js explicitly crashes if raw Prisma Date objects are passed directly to client boundaries
+  const safeExercises = JSON.parse(JSON.stringify(initialExercises));
+
   return (
     <ExerciseLibraryClient 
       user={user} 
-      initialExercises={initialExercises} 
+      initialExercises={safeExercises} 
       bodyParts={bodyParts}
       needsSync={needsSync}
     />
