@@ -421,7 +421,705 @@ const FOOD_DB: Record<string, FoodEntry> = {
     defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
     aliases: ["tender coconut", "nariyal pani"],
   },
+
+  // ══════════════════════════════════════════════════════
+  // EXPANDED INDIAN FOOD DATABASE (IFCT/NIN verified)
+  // ══════════════════════════════════════════════════════
+
+  // ── South Indian Breakfast & Tiffin ──
+  "appam": {
+    cal: 145, pro: 2.5, carb: 28, fat: 2.5, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 60, servingLabel: "1 piece (60g)",
+    aliases: ["appams", "palappam", "hoppers"],
+  },
+  "puttu": {
+    cal: 210, pro: 4, carb: 38, fat: 5, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 cylinder (150g)",
+    aliases: ["puttus", "rice puttu"],
+  },
+  "idiyappam": {
+    cal: 130, pro: 2.5, carb: 28, fat: 0.5, fib: 0.8,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["string hoppers", "nool puttu", "sevai"],
+  },
+  "rava dosa": {
+    cal: 185, pro: 3.5, carb: 24, fat: 8.5, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 90, servingLabel: "1 piece (90g)",
+    aliases: ["rava dosai", "semolina dosa", "sooji dosa"],
+  },
+  "onion dosa": {
+    cal: 180, pro: 4, carb: 25, fat: 7, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 95, servingLabel: "1 piece (95g)",
+    aliases: ["onion uttappam"],
+  },
+  "set dosa": {
+    cal: 120, pro: 3.5, carb: 22, fat: 2.0, fib: 0.8,
+    defaultUnit: "piece", weightPerUnit: 35, servingLabel: "1 piece (35g)",
+    aliases: ["set dosai"],
+  },
+  "bonda": {
+    cal: 290, pro: 5, carb: 30, fat: 16, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 50, servingLabel: "1 piece (50g)",
+    aliases: ["bondas", "aloo bonda", "potato bonda", "mysore bonda"],
+  },
+  "bajji": {
+    cal: 270, pro: 4, carb: 28, fat: 15, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["bajjis", "pakora", "pakoras", "pakoda", "bhajji", "bhaji"],
+  },
+  "paniyaram": {
+    cal: 160, pro: 4, carb: 24, fat: 5.5, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 25, servingLabel: "1 piece (25g)",
+    aliases: ["paniyarams", "kuzhi paniyaram", "paddu", "appe"],
+  },
+  "kozhukattai": {
+    cal: 180, pro: 3, carb: 32, fat: 5, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 35, servingLabel: "1 piece (35g)",
+    aliases: ["modak", "modaks", "kozhukattais", "ukadiche modak"],
+  },
+  "adai": {
+    cal: 175, pro: 7, carb: 26, fat: 5, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["adai dosa", "protein dosa"],
+  },
+
+  // ── North Indian Breakfast ──
+  "aloo paratha": {
+    cal: 290, pro: 6, carb: 40, fat: 12, fib: 2.5,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["aloo paratha stuffed", "potato paratha"],
+  },
+  "gobi paratha": {
+    cal: 270, pro: 6, carb: 38, fat: 10, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["cauliflower paratha"],
+  },
+  "paneer paratha": {
+    cal: 310, pro: 10, carb: 35, fat: 14, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 85, servingLabel: "1 piece (85g)",
+  },
+  "methi paratha": {
+    cal: 275, pro: 7, carb: 38, fat: 11, fib: 3.5,
+    defaultUnit: "piece", weightPerUnit: 75, servingLabel: "1 piece (75g)",
+    aliases: ["fenugreek paratha"],
+  },
+  "thepla": {
+    cal: 280, pro: 7, carb: 40, fat: 10, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["theplas", "gujarati thepla"],
+  },
+  "poori": {
+    cal: 324, pro: 7.5, carb: 45, fat: 13, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 25, servingLabel: "1 piece (25g)",
+    aliases: ["pooris"],
+  },
+  "bhatura": {
+    cal: 310, pro: 7, carb: 42, fat: 13, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 75, servingLabel: "1 piece (75g)",
+    aliases: ["bhaturas", "bhature"],
+  },
+  "kulcha": {
+    cal: 300, pro: 8, carb: 48, fat: 8, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["amritsari kulcha", "butter kulcha"],
+  },
+  "luchi": {
+    cal: 330, pro: 5, carb: 40, fat: 17, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 25, servingLabel: "1 piece (25g)",
+    aliases: ["luchis", "bengali luchi"],
+  },
+
+  // ── Rice Dishes ──
+  "jeera rice": {
+    cal: 145, pro: 3, carb: 28, fat: 2.5, fib: 0.5,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup (180g)",
+    aliases: ["cumin rice", "zeera rice"],
+  },
+  "lemon rice": {
+    cal: 155, pro: 3, carb: 27, fat: 4, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup (180g)",
+    aliases: ["chitranna", "nimmakaya annam", "elumichai sadam"],
+  },
+  "curd rice": {
+    cal: 130, pro: 4, carb: 22, fat: 3, fib: 0.3,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["dahi chawal", "thayir sadam", "perugu annam", "mosaranna"],
+  },
+  "tamarind rice": {
+    cal: 160, pro: 3, carb: 28, fat: 4.5, fib: 1.5,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup (180g)",
+    aliases: ["pulihora", "puliyogare", "puliyodarai"],
+  },
+  "coconut rice": {
+    cal: 170, pro: 3, carb: 26, fat: 6.5, fib: 2.0,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup (180g)",
+    aliases: ["kobbari annam", "tengai sadam"],
+  },
+  "tomato rice": {
+    cal: 150, pro: 3, carb: 27, fat: 3.5, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup (180g)",
+    aliases: ["tomato bath"],
+  },
+  "pulao": {
+    cal: 155, pro: 4, carb: 26, fat: 4, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["pulav", "veg pulao", "vegetable pulao", "pilaf"],
+  },
+  "khichdi": {
+    cal: 105, pro: 4.5, carb: 18, fat: 1.5, fib: 2.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["khichri", "kichdi", "kitchdi", "dal khichdi"],
+  },
+  "egg fried rice": {
+    cal: 170, pro: 7, carb: 24, fat: 5, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["egg rice"],
+  },
+  "chicken fried rice": {
+    cal: 180, pro: 10, carb: 24, fat: 5, fib: 0.8,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+  },
+  "mutton biryani": {
+    cal: 175, pro: 10, carb: 18, fat: 7, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+    aliases: ["goat biryani", "lamb biryani"],
+  },
+  "egg biryani": {
+    cal: 155, pro: 7, carb: 20, fat: 5, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+  },
+
+  // ── Dals & Lentils ──
+  "masoor dal": {
+    cal: 80, pro: 6, carb: 13, fat: 0.5, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["red lentil dal", "masoor ki dal"],
+  },
+  "chana dal": {
+    cal: 90, pro: 6.5, carb: 14, fat: 1.0, fib: 4.0,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["bengal gram dal"],
+  },
+  "urad dal": {
+    cal: 85, pro: 6, carb: 13, fat: 0.8, fib: 3.0,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["black gram dal"],
+  },
+  "moong dal": {
+    cal: 78, pro: 6, carb: 12, fat: 0.5, fib: 2.0,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["green gram dal", "mung dal", "pasi paruppu"],
+  },
+  "tadka dal": {
+    cal: 85, pro: 5, carb: 13, fat: 2, fib: 3.0,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["dal tadka", "dal fry", "fry dal"],
+  },
+  "panchmel dal": {
+    cal: 82, pro: 5.5, carb: 13, fat: 1.0, fib: 3.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["panchratna dal", "mix dal"],
+  },
+
+  // ── North Indian Curries & Gravies ──
+  "paneer butter masala": {
+    cal: 180, pro: 8, carb: 8, fat: 14, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["paneer makhani", "paneer tikka masala"],
+  },
+  "butter chicken": {
+    cal: 165, pro: 12, carb: 7, fat: 10, fib: 0.8,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["murgh makhani", "butter chicken gravy"],
+  },
+  "kadhi": {
+    cal: 70, pro: 3, carb: 7, fat: 3.5, fib: 0.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["kadhi pakora", "punjabi kadhi", "gujarati kadhi"],
+  },
+  "baingan bharta": {
+    cal: 75, pro: 2, carb: 8, fat: 4, fib: 3.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["brinjal bharta", "eggplant bharta", "baigan bharta"],
+  },
+  "malai kofta": {
+    cal: 190, pro: 6, carb: 12, fat: 14, fib: 1.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+  },
+  "shahi paneer": {
+    cal: 170, pro: 8, carb: 7, fat: 13, fib: 0.8,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+  },
+  "chana masala": {
+    cal: 100, pro: 5, carb: 16, fat: 2.1, fib: 4.2,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["chickpea curry"],
+  },
+  "matar paneer": {
+    cal: 140, pro: 8, carb: 10, fat: 8, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["paneer peas", "peas paneer"],
+  },
+  "aloo matar": {
+    cal: 95, pro: 3, carb: 14, fat: 3, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["potato peas curry"],
+  },
+  "bhindi masala": {
+    cal: 80, pro: 2, carb: 8, fat: 4.5, fib: 3.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["okra curry", "lady finger curry", "vendakkai"],
+  },
+  "mixed veg curry": {
+    cal: 75, pro: 2.5, carb: 10, fat: 3, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["mix veg", "mix vegetable", "mixed vegetable"],
+  },
+  "egg curry": {
+    cal: 130, pro: 9, carb: 5, fat: 8.5, fib: 0.8,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["anda curry", "egg masala"],
+  },
+  "aloo palak": {
+    cal: 85, pro: 3, carb: 10, fat: 4, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["potato spinach", "palak aloo"],
+  },
+  "dal makhani": {
+    cal: 110, pro: 5, carb: 14, fat: 4, fib: 3.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["maa ki dal", "dal makhni"],
+  },
+
+  // ── South Indian Curries & Sides ──
+  "avial": {
+    cal: 75, pro: 2, carb: 7, fat: 4.5, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["aviyal"],
+  },
+  "kootu": {
+    cal: 85, pro: 4, carb: 12, fat: 2.5, fib: 3.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["koottu"],
+  },
+  "poriyal": {
+    cal: 65, pro: 2, carb: 7, fat: 3.5, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["beans poriyal", "cabbage poriyal", "thoran", "palya"],
+  },
+  "chutney": {
+    cal: 60, pro: 2, carb: 6, fat: 3, fib: 1.5,
+    defaultUnit: "tbsp", weightPerUnit: 30, servingLabel: "2 tbsp (30g)",
+    aliases: ["coconut chutney", "tomato chutney", "mint chutney", "green chutney", "red chutney", "peanut chutney"],
+  },
+  "pickle": {
+    cal: 150, pro: 2, carb: 8, fat: 12, fib: 2.0,
+    defaultUnit: "tbsp", weightPerUnit: 15, servingLabel: "1 tbsp (15g)",
+    aliases: ["achar", "avakaya", "mango pickle", "lemon pickle", "aachar"],
+  },
+
+  // ── Non-Veg Dishes ──
+  "tandoori chicken": {
+    cal: 165, pro: 25, carb: 3, fat: 6, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 120, servingLabel: "1 leg piece (120g)",
+    aliases: ["tandoori", "tandoori chicken leg"],
+  },
+  "chicken tikka": {
+    cal: 175, pro: 26, carb: 4, fat: 6, fib: 0.5,
+    defaultUnit: "g", weightPerUnit: 100, servingLabel: "100g",
+    aliases: ["tikka chicken"],
+  },
+  "seekh kebab": {
+    cal: 210, pro: 18, carb: 5, fat: 13, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 60, servingLabel: "1 piece (60g)",
+    aliases: ["kebab", "kabab", "seekh kabab", "sheek kebab"],
+  },
+  "chicken 65": {
+    cal: 250, pro: 18, carb: 15, fat: 14, fib: 1.0,
+    defaultUnit: "g", weightPerUnit: 150, servingLabel: "1 serving (150g)",
+    aliases: ["chicken65"],
+  },
+  "fish fry": {
+    cal: 190, pro: 18, carb: 10, fat: 9, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 100, servingLabel: "1 piece (100g)",
+    aliases: ["fried fish", "meen varuval", "fish tawa fry", "tawa fish"],
+  },
+  "prawn masala": {
+    cal: 125, pro: 16, carb: 5, fat: 5, fib: 0.8,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["shrimp curry", "prawn curry", "jhinga masala"],
+  },
+  "mutton keema": {
+    cal: 200, pro: 16, carb: 5, fat: 13, fib: 0.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["keema", "kheema", "minced meat"],
+  },
+  "chicken lollipop": {
+    cal: 240, pro: 16, carb: 14, fat: 14, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["chicken lollipops"],
+  },
+  "egg bhurji": {
+    cal: 170, pro: 12, carb: 3, fat: 12, fib: 0.5,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 serving (150g)",
+    aliases: ["anda bhurji", "scrambled eggs indian"],
+  },
+
+  // ── Street Food & Snacks ──
+  "pav bhaji": {
+    cal: 190, pro: 5, carb: 26, fat: 8, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+    aliases: ["pav bhaji plate"],
+  },
+  "bhel puri": {
+    cal: 160, pro: 4, carb: 28, fat: 4, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 plate (150g)",
+    aliases: ["bhel", "bhelpuri"],
+  },
+  "sev puri": {
+    cal: 200, pro: 4, carb: 25, fat: 9, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 120, servingLabel: "1 plate (120g)",
+    aliases: ["sevpuri"],
+  },
+  "pani puri": {
+    cal: 45, pro: 1, carb: 8, fat: 1, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 20, servingLabel: "1 piece (20g)",
+    aliases: ["golgappa", "gol gappe", "puchka", "pani poori"],
+  },
+  "dahi puri": {
+    cal: 55, pro: 1.5, carb: 8, fat: 2, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 25, servingLabel: "1 piece (25g)",
+    aliases: ["dahi poori"],
+  },
+  "kachori": {
+    cal: 330, pro: 7, carb: 35, fat: 18, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 60, servingLabel: "1 piece (60g)",
+    aliases: ["kachoris", "pyaaz kachori", "dal kachori"],
+  },
+  "aloo tikki": {
+    cal: 200, pro: 3, carb: 25, fat: 10, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["tikki", "potato tikki", "aloo cutlet"],
+  },
+  "vada pav": {
+    cal: 290, pro: 6, carb: 38, fat: 13, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 120, servingLabel: "1 piece (120g)",
+    aliases: ["vadapav", "wada pav"],
+  },
+  "misal pav": {
+    cal: 210, pro: 8, carb: 30, fat: 7, fib: 4.0,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+    aliases: ["misal"],
+  },
+  "dabeli": {
+    cal: 250, pro: 5, carb: 35, fat: 10, fib: 2.5,
+    defaultUnit: "piece", weightPerUnit: 100, servingLabel: "1 piece (100g)",
+  },
+  "frankie": {
+    cal: 220, pro: 8, carb: 28, fat: 9, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 roll (150g)",
+    aliases: ["kathi roll", "wrap", "egg roll"],
+  },
+  "chaat": {
+    cal: 175, pro: 4, carb: 25, fat: 7, fib: 2.5,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 plate (150g)",
+    aliases: ["aloo chaat", "papdi chaat", "dahi chaat"],
+  },
+  "murukku": {
+    cal: 450, pro: 8, carb: 58, fat: 20, fib: 2.5,
+    defaultUnit: "piece", weightPerUnit: 15, servingLabel: "1 piece (15g)",
+    aliases: ["murukkus", "chakli", "muruku"],
+  },
+  "namak para": {
+    cal: 440, pro: 8, carb: 55, fat: 22, fib: 2.0,
+    defaultUnit: "g", weightPerUnit: 30, servingLabel: "1 handful (30g)",
+    aliases: ["namkeen", "namak pare"],
+  },
+  "mixture": {
+    cal: 480, pro: 12, carb: 50, fat: 26, fib: 4.0,
+    defaultUnit: "g", weightPerUnit: 30, servingLabel: "1 handful (30g)",
+    aliases: ["south indian mixture", "madras mixture", "snack mix"],
+  },
+  "chivda": {
+    cal: 420, pro: 10, carb: 55, fat: 18, fib: 3.0,
+    defaultUnit: "g", weightPerUnit: 30, servingLabel: "1 handful (30g)",
+    aliases: ["poha chivda", "flattened rice snack"],
+  },
+  "papad": {
+    cal: 340, pro: 18, carb: 45, fat: 10, fib: 5.0,
+    defaultUnit: "piece", weightPerUnit: 15, servingLabel: "1 piece (15g)",
+    aliases: ["pappad", "papadum", "appalam", "roasted papad", "fried papad"],
+  },
+  "mathri": {
+    cal: 440, pro: 7, carb: 50, fat: 24, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 15, servingLabel: "1 piece (15g)",
+    aliases: ["mathris", "mathari"],
+  },
+
+  // ── Indian Chinese ──
+  "manchurian": {
+    cal: 180, pro: 4, carb: 22, fat: 9, fib: 2.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 serving (200g)",
+    aliases: ["gobi manchurian", "veg manchurian", "chicken manchurian", "manchuria"],
+  },
+  "noodles": {
+    cal: 160, pro: 5, carb: 25, fat: 5, fib: 1.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 plate (200g)",
+    aliases: ["hakka noodles", "veg noodles", "chow mein", "schezwan noodles"],
+  },
+  "fried rice": {
+    cal: 170, pro: 5, carb: 26, fat: 5, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 plate (200g)",
+    aliases: ["veg fried rice", "schezwan fried rice"],
+  },
+  "spring roll": {
+    cal: 230, pro: 5, carb: 25, fat: 12, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 60, servingLabel: "1 piece (60g)",
+    aliases: ["spring rolls", "veg spring roll"],
+  },
+  "momos": {
+    cal: 200, pro: 8, carb: 28, fat: 7, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 25, servingLabel: "1 piece (25g)",
+    aliases: ["momo", "steamed momos", "fried momos", "veg momos", "chicken momos"],
+  },
+
+  // ── Indian Sweets & Desserts ──
+  "rasgulla": {
+    cal: 186, pro: 5, carb: 35, fat: 3, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["rasgullas", "rosogolla"],
+  },
+  "rasmalai": {
+    cal: 200, pro: 6, carb: 28, fat: 7, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 50, servingLabel: "1 piece (50g)",
+    aliases: ["ras malai"],
+  },
+  "barfi": {
+    cal: 400, pro: 8, carb: 55, fat: 18, fib: 0.5,
+    defaultUnit: "piece", weightPerUnit: 30, servingLabel: "1 piece (30g)",
+    aliases: ["burfi", "barfis", "kaju barfi", "kaju katli", "pista barfi"],
+  },
+  "halwa": {
+    cal: 320, pro: 4, carb: 45, fat: 15, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 100, servingLabel: "1 serving (100g)",
+    aliases: ["halva", "gajar halwa", "moong dal halwa", "suji halwa", "carrot halwa", "sooji halwa", "rava kesari", "sheera"],
+  },
+  "mysore pak": {
+    cal: 480, pro: 6, carb: 50, fat: 28, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 30, servingLabel: "1 piece (30g)",
+    aliases: ["mysore pak ghee"],
+  },
+  "peda": {
+    cal: 390, pro: 8, carb: 52, fat: 18, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 20, servingLabel: "1 piece (20g)",
+    aliases: ["pedas", "mathura peda"],
+  },
+  "kheer": {
+    cal: 110, pro: 3.5, carb: 18, fat: 3, fib: 0.2,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["rice kheer", "chawal ki kheer", "payesh"],
+  },
+  "payasam": {
+    cal: 120, pro: 3, carb: 20, fat: 3.5, fib: 0.5,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["ada pradhaman", "paruppu payasam", "paal payasam", "semiya payasam"],
+  },
+  "basundi": {
+    cal: 150, pro: 5, carb: 22, fat: 5, fib: 0,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["rabdi", "rabri"],
+  },
+  "sandesh": {
+    cal: 320, pro: 10, carb: 42, fat: 14, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 30, servingLabel: "1 piece (30g)",
+    aliases: ["sondesh"],
+  },
+  "kulfi": {
+    cal: 160, pro: 4, carb: 22, fat: 6, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 stick (80g)",
+    aliases: ["malai kulfi", "pista kulfi", "mango kulfi"],
+  },
+  "phirni": {
+    cal: 115, pro: 3, carb: 18, fat: 3.5, fib: 0.2,
+    defaultUnit: "cup", weightPerUnit: 120, servingLabel: "1 bowl (120g)",
+  },
+
+  // ── Fruits (Indian common) ──
+  "guava": {
+    cal: 68, pro: 2.6, carb: 14, fat: 1.0, fib: 5.4,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 medium (150g)",
+    aliases: ["amrood", "peru"],
+  },
+  "pomegranate": {
+    cal: 83, pro: 1.7, carb: 19, fat: 1.2, fib: 4.0,
+    defaultUnit: "piece", weightPerUnit: 175, servingLabel: "1 cup seeds (175g)",
+    aliases: ["anar", "dalimba"],
+  },
+  "chikoo": {
+    cal: 83, pro: 0.4, carb: 20, fat: 1.1, fib: 5.3,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 medium (80g)",
+    aliases: ["sapota", "sapodilla", "chiku"],
+  },
+  "jackfruit": {
+    cal: 95, pro: 1.7, carb: 23, fat: 0.6, fib: 1.5,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["kathal", "panasa", "chakka"],
+  },
+  "custard apple": {
+    cal: 94, pro: 2.1, carb: 24, fat: 0.3, fib: 4.4,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 medium (150g)",
+    aliases: ["sitaphal", "sharifa", "sugar apple"],
+  },
+  "grapes": {
+    cal: 69, pro: 0.7, carb: 18, fat: 0.2, fib: 0.9,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["grape", "angoor"],
+  },
+  "pineapple": {
+    cal: 50, pro: 0.5, carb: 13, fat: 0.1, fib: 1.4,
+    defaultUnit: "cup", weightPerUnit: 165, servingLabel: "1 cup (165g)",
+    aliases: ["ananas"],
+  },
+  "lychee": {
+    cal: 66, pro: 0.8, carb: 17, fat: 0.4, fib: 1.3,
+    defaultUnit: "piece", weightPerUnit: 10, servingLabel: "1 piece (10g)",
+    aliases: ["litchi", "lichi"],
+  },
+
+  // ── Vegetables (cooked) ──
+  "potato": {
+    cal: 97, pro: 2, carb: 22, fat: 0.1, fib: 2.2,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 medium (150g)",
+    aliases: ["boiled potato", "aloo"],
+  },
+  "paneer tikka": {
+    cal: 280, pro: 18, carb: 6, fat: 20, fib: 1.5,
+    defaultUnit: "g", weightPerUnit: 150, servingLabel: "1 serving (150g)",
+    aliases: ["paneer tikka dry"],
+  },
+  "palak": {
+    cal: 23, pro: 2.9, carb: 3.6, fat: 0.4, fib: 2.2,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup cooked (180g)",
+    aliases: ["spinach", "spinach cooked"],
+  },
+  "broccoli": {
+    cal: 34, pro: 2.8, carb: 7, fat: 0.4, fib: 2.6,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+  },
+  "corn": {
+    cal: 86, pro: 3.3, carb: 19, fat: 1.4, fib: 2.7,
+    defaultUnit: "piece", weightPerUnit: 100, servingLabel: "1 cob (100g)",
+    aliases: ["sweet corn", "bhutta", "corn cob", "makka"],
+  },
+
+  // ── Beverages (Indian) ──
+  "badam milk": {
+    cal: 95, pro: 4, carb: 13, fat: 3.5, fib: 0.5,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["almond milk", "badam doodh"],
+  },
+  "thandai": {
+    cal: 120, pro: 4, carb: 17, fat: 4, fib: 0.5,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+  },
+  "rooh afza": {
+    cal: 70, pro: 0, carb: 18, fat: 0, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["roohafza", "rose sharbat"],
+  },
+  "nimbu pani": {
+    cal: 40, pro: 0.3, carb: 10, fat: 0, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["lemon water", "nimbu paani", "lemonade", "shikanji"],
+  },
+  "sugarcane juice": {
+    cal: 75, pro: 0.2, carb: 19, fat: 0, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["ganne ka juice"],
+  },
+  "jaljeera": {
+    cal: 25, pro: 0.5, carb: 5, fat: 0.5, fib: 0.5,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+  },
+  "aam panna": {
+    cal: 55, pro: 0.3, carb: 14, fat: 0, fib: 0.5,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["raw mango drink"],
+  },
+
+  // ── Lentils & Legumes (cooked) ──
+  "sprouts": {
+    cal: 30, pro: 3.2, carb: 5.5, fat: 0.2, fib: 1.8,
+    defaultUnit: "cup", weightPerUnit: 100, servingLabel: "1 cup (100g)",
+    aliases: ["moong sprouts", "sprouted moong", "sprout salad"],
+  },
+  "sundal": {
+    cal: 130, pro: 7, carb: 18, fat: 3, fib: 5.0,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["chana sundal", "peanut sundal"],
+  },
+
+  // ── Regional Specials ──
+  "bisi bele bath": {
+    cal: 140, pro: 5, carb: 22, fat: 3.5, fib: 2.5,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["bisibelebath", "bisi bele bhath"],
+  },
+  "pav": {
+    cal: 280, pro: 8, carb: 50, fat: 5, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 35, servingLabel: "1 piece (35g)",
+    aliases: ["bread pav", "pavs", "ladi pav"],
+  },
+  "dhokla": {
+    cal: 160, pro: 5, carb: 25, fat: 4, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["khaman dhokla", "besan dhokla"],
+  },
+  "khandvi": {
+    cal: 150, pro: 6, carb: 18, fat: 6, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 20, servingLabel: "1 roll (20g)",
+  },
+  "fafda": {
+    cal: 430, pro: 10, carb: 48, fat: 22, fib: 3.0,
+    defaultUnit: "g", weightPerUnit: 50, servingLabel: "1 serving (50g)",
+    aliases: ["fafda jalebi"],
+  },
+  "undhiyu": {
+    cal: 120, pro: 4, carb: 14, fat: 5.5, fib: 4.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["undhyu"],
+  },
+  "thalipeeth": {
+    cal: 280, pro: 8, carb: 40, fat: 10, fib: 4.0,
+    defaultUnit: "piece", weightPerUnit: 60, servingLabel: "1 piece (60g)",
+    aliases: ["bhajani thalipeeth"],
+  },
+  "sabudana khichdi": {
+    cal: 180, pro: 3, carb: 30, fat: 6, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+    aliases: ["sabudana", "sago khichdi", "tapioca"],
+  },
+  "sabudana vada": {
+    cal: 310, pro: 4, carb: 35, fat: 17, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 50, servingLabel: "1 piece (50g)",
+    aliases: ["sago vada"],
+  },
+  "pav bhaji masala": {
+    cal: 280, pro: 5, carb: 32, fat: 15, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 120, servingLabel: "1 portion bhaji (120g)",
+  },
+  "maggi": {
+    cal: 395, pro: 9.4, carb: 58, fat: 14.6, fib: 2.4,
+    defaultUnit: "piece", weightPerUnit: 70, servingLabel: "1 pack (70g)",
+    aliases: ["instant noodles", "noodles maggi", "2 minute noodles"],
+  },
+  "chole bhature": {
+    cal: 210, pro: 6, carb: 28, fat: 9, fib: 3.5,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+    aliases: ["chhole bhature", "chole bhatura"],
+  },
 };
+
 
 // ─── Build alias lookup map for O(1) matching ────────────────────
 const ALIAS_MAP = new Map<string, string>();
