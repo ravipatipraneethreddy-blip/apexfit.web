@@ -6,8 +6,13 @@ export async function checkAndSeedExercises() {
   try {
     // 1. Check if we already have exercises seeded locally
     const count = await prisma.cachedExercise.count();
-    if (count > 0) {
+    if (count > 1000) {
       return { success: true, message: "Already seeded", count };
+    }
+
+    // Purge incomplete cache to start fresh
+    if (count > 0) {
+      await prisma.cachedExercise.deleteMany({});
     }
 
     // 2. Fetch from RapidAPI if our DB is empty
@@ -16,7 +21,7 @@ export async function checkAndSeedExercises() {
       return { error: "Missing RAPIDAPI_KEY in environment variables." };
     }
 
-    const url = "https://exercisedb.p.rapidapi.com/exercises?limit=100&offset=0";
+    const url = "https://exercisedb.p.rapidapi.com/exercises?limit=1500&offset=0";
     const options = {
       method: "GET",
       headers: {
