@@ -15,9 +15,11 @@ export default function ExerciseLibraryClient({
   user: any;
   initialExercises: any[];
   bodyParts: string[];
-  syncResult?: any;
+  needsSync?: boolean;
 }) {
   const [exercises, setExercises] = useState(initialExercises);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeBodyPart, setActiveBodyPart] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +36,24 @@ export default function ExerciseLibraryClient({
     }
     // Only fetch if it's different from the initial load
     fetchFiltered();
-  }, [debouncedSearch, activeBodyPart]);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      // @ts-ignore
+      const { checkAndSeedExercises } = await import("@/actions/exercise.actions");
+      const result = await checkAndSeedExercises();
+      if (result.error) {
+        setSyncError(result.error);
+      } else {
+        window.location.reload(); // Hard reload to see changes globally
+      }
+    } catch (err: any) {
+      setSyncError("Sync process failed. Your connection might have timed out.");
+    }
+    setIsSyncing(false);
+  };
 
   return (
     <div className="min-h-screen p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
@@ -56,10 +75,29 @@ export default function ExerciseLibraryClient({
           </div>
         </header>
 
-        {syncResult?.error && (
+        {syncError && (
           <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-xl mb-6 text-sm font-semibold flex flex-col gap-1">
-            <span>🚨 Database Sync Failed: {syncResult.error}</span>
-            <span className="text-xs text-red-400">Please make sure `RAPIDAPI_KEY` is added to your Vercel Environment Variables and rebuilt.</span>
+            <span>🚨 Database Sync Failed: {syncError}</span>
+            <span className="text-xs text-red-400">Please make sure `RAPIDAPI_KEY` is added to your Vercel Environment Variables.</span>
+          </div>
+        )}
+
+        {needsSync && !syncError && (
+          <div className="glass-panel p-6 rounded-3xl mb-8 flex flex-col items-center justify-center text-center gap-4 border border-primary/20 bg-primary/5">
+            <div className="p-3 bg-primary/20 text-primary rounded-full mb-2 shrink-0">
+              <Dumbbell className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold">Your Library is Empty!</h3>
+            <p className="text-sm font-medium text-muted-foreground max-w-md">
+              We need to pull down the massive 1,300+ exercise dictionary from ExerciseDB to your local Postgres Database.
+            </p>
+            <button 
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="bg-primary text-primary-foreground font-bold px-8 py-3 rounded-full mt-2 hover:opacity-80 transition disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSyncing ? "Downloading... (This takes 5 - 15 seconds)" : "Sync Database Now"}
+            </button>
           </div>
         )}
 

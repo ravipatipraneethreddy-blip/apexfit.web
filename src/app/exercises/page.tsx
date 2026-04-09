@@ -11,19 +11,19 @@ export default async function ExerciseLibraryPage() {
     redirect("/onboarding");
   }
 
-  // 1. Automatically bulk-seed the exercises if not already seeded
-  const syncResult = await checkAndSeedExercises();
-
-  // 2. Load cached exercises
+  // Load cached exercises safely
   const initialExercises = await getExercises("", "All", 50);
   const bodyParts = await getAllBodyParts();
+  
+  // Checking count to inject the manual sync button if empty
+  const needsSync = initialExercises.length < 10;
 
   return (
     <ExerciseLibraryClient 
       user={user} 
       initialExercises={initialExercises} 
       bodyParts={bodyParts}
-      syncResult={syncResult}
+      needsSync={needsSync}
     />
   );
 }
