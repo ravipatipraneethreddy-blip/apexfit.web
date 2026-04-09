@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import WaterTracker from "@/components/water-tracker";
-import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle } from "lucide-react";
+import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator } from "lucide-react";
 import Link from "next/link";
 import {
   AreaChart, Area, ResponsiveContainer, Tooltip, XAxis,
@@ -121,7 +121,7 @@ export default function DashboardClient({
               </Link>
               <Link href="/social">
                 <button className="p-2 bg-secondary rounded-xl hover:bg-secondary/70 transition cursor-pointer" title="Leaderboard">
-                  <UserCircle className="w-5 h-5 text-yellow-400" />
+                  <Trophy className="w-5 h-5 text-yellow-400" />
                 </button>
               </Link>
             </div>
@@ -351,6 +351,21 @@ export default function DashboardClient({
                   <div>
                     <span className="font-medium text-sm block">View Progress</span>
                     <span className="text-[10px] text-muted-foreground">Charts & analytics</span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                href="/bodyfat"
+                className="w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-background rounded-full group-hover:bg-primary/20 transition text-purple-400">
+                    <Calculator className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-sm block">Body Composition</span>
+                    <span className="text-[10px] text-muted-foreground">Calculate body fat %</span>
                   </div>
                 </div>
               </Link>

@@ -40,10 +40,6 @@ export async function saveWorkoutTemplate(name: string, exerciseNames: string[])
   const dbReady = await isDbAvailable();
   if (!dbReady) throw new Error("Database unavailable for templates.");
 
-  if (user.id.startsWith("mock-")) {
-    throw new Error("You must be logged in with a real account to save custom templates.");
-  }
-
   const created = await prisma.workoutTemplate.create({
     data: {
       userId: user.id,
@@ -60,7 +56,7 @@ export async function saveWorkoutTemplate(name: string, exerciseNames: string[])
 
 export async function deleteWorkoutTemplate(id: string) {
   const user = await getUserProfile();
-  if (!user || user.id.startsWith("mock-")) return false;
+  if (!user) return false;
   
   const dbReady = await isDbAvailable();
   if (!dbReady) return false;
@@ -71,67 +67,6 @@ export async function deleteWorkoutTemplate(id: string) {
   revalidatePath("/workout");
   return true;
 }
-
-// Mock workouts for demo mode
-const MOCK_WORKOUTS = [
-  {
-    id: "mock-workout-1",
-    userId: "mock-user-1",
-    date: new Date(Date.now() - 86400000),
-    name: "Push Day",
-    exercises: [
-      { id: "ex-1", workoutLogId: "mock-workout-1", name: "Barbell Bench Press", sets: 3, reps: 10, weight: 80 },
-      { id: "ex-2", workoutLogId: "mock-workout-1", name: "Incline Dumbbell Press", sets: 3, reps: 12, weight: 28 },
-      { id: "ex-3", workoutLogId: "mock-workout-1", name: "Overhead Press", sets: 3, reps: 8, weight: 50 },
-    ],
-  },
-  {
-    id: "mock-workout-2",
-    userId: "mock-user-1",
-    date: new Date(Date.now() - 172800000),
-    name: "Pull Day",
-    exercises: [
-      { id: "ex-4", workoutLogId: "mock-workout-2", name: "Barbell Rows", sets: 4, reps: 8, weight: 70 },
-      { id: "ex-5", workoutLogId: "mock-workout-2", name: "Pull Ups", sets: 3, reps: 10, weight: 0 },
-      { id: "ex-6", workoutLogId: "mock-workout-2", name: "Barbell Curl", sets: 3, reps: 12, weight: 25 },
-    ],
-  },
-  {
-    id: "mock-workout-3",
-    userId: "mock-user-1",
-    date: new Date(Date.now() - 259200000),
-    name: "Leg Day",
-    exercises: [
-      { id: "ex-7", workoutLogId: "mock-workout-3", name: "Barbell Squats", sets: 4, reps: 8, weight: 100 },
-      { id: "ex-8", workoutLogId: "mock-workout-3", name: "Romanian Deadlift", sets: 3, reps: 10, weight: 80 },
-      { id: "ex-9", workoutLogId: "mock-workout-3", name: "Leg Press", sets: 3, reps: 12, weight: 150 },
-    ],
-  },
-  {
-    id: "mock-workout-4",
-    userId: "mock-user-1",
-    date: new Date(Date.now() - 345600000),
-    name: "Push Day",
-    exercises: [
-      { id: "ex-10", workoutLogId: "mock-workout-4", name: "Barbell Bench Press", sets: 3, reps: 10, weight: 77.5 },
-      { id: "ex-11", workoutLogId: "mock-workout-4", name: "Overhead Press", sets: 3, reps: 8, weight: 47.5 },
-    ],
-  },
-  {
-    id: "mock-workout-5",
-    userId: "mock-user-1",
-    date: new Date(Date.now() - 518400000),
-    name: "Pull Day",
-    exercises: [
-      { id: "ex-12", workoutLogId: "mock-workout-5", name: "Deadlift", sets: 3, reps: 5, weight: 120 },
-      { id: "ex-13", workoutLogId: "mock-workout-5", name: "Barbell Rows", sets: 4, reps: 8, weight: 67.5 },
-    ],
-  },
-];
-
-// In-memory mock store
-let mockWorkoutStore = [...MOCK_WORKOUTS];
-let mockWorkoutNextId = 200;
 
 export async function logWorkout(formData: FormData) {
   const user = await getUserProfile();
@@ -146,30 +81,8 @@ export async function logWorkout(formData: FormData) {
 
   const dbReady = await isDbAvailable();
 
-  if (!dbReady || user.id.startsWith("mock-")) {
-    // Mock mode — add to in-memory store
-    const exercises = JSON.parse(exercisesRaw) as Array<{
-      name: string; sets: number; reps: number; weight: number;
-    }>;
-    const workoutId = `mock-workout-${mockWorkoutNextId++}`;
-    mockWorkoutStore.unshift({
-      id: workoutId,
-      userId: "mock-user-1",
-      date: new Date(),
-      name,
-      exercises: exercises.map((ex, i) => ({
-        id: `ex-mock-${mockWorkoutNextId++}`,
-        workoutLogId: workoutId,
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        weight: ex.weight,
-      })),
-    });
-    revalidatePath("/workout");
-    revalidatePath("/");
-    revalidatePath("/progress");
-    return { success: true };
+  if (!dbReady) {
+    throw new Error("Database is not available. Please try again later.");
   }
 
   try {
@@ -197,10 +110,11 @@ export async function logWorkout(formData: FormData) {
     revalidatePath("/progress");
   } catch (err) {
     console.error("[ApexFit] Failed to log workout:", err);
+    throw new Error("Failed to log workout.");
   }
 
   // Update streak
-  await checkAndUpdateStreak(user ? user.id : "mock-user-1");
+  await checkAndUpdateStreak(user.id);
 
   // Trigger achievements
   try {
@@ -208,7 +122,7 @@ export async function logWorkout(formData: FormData) {
       name: string; sets: number; reps: number; weight: number;
     }>;
     const maxWeight = Math.max(...exercises.map((e) => e.weight), 0);
-    const earned = await checkAndUnlockBadges(user ? user.id : "mock-user-1", {
+    const earned = await checkAndUnlockBadges(user.id, {
       loggedWorkout: true,
       maxWeightLifted: maxWeight,
     });
@@ -226,12 +140,12 @@ export async function getRecentWorkouts() {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    return mockWorkoutStore;
+    return [];
   }
 
   try {
     const user = await getUserProfile();
-    if (!user) return mockWorkoutStore;
+    if (!user) return [];
 
     const workouts = await prisma!.workoutLog.findMany({
       where: { userId: user.id },
@@ -240,9 +154,9 @@ export async function getRecentWorkouts() {
       take: 10,
     });
 
-    return workouts.length > 0 ? workouts : mockWorkoutStore;
+    return workouts;
   } catch {
-    return mockWorkoutStore;
+    return [];
   }
 }
 
@@ -250,25 +164,15 @@ export async function getRecentWorkouts() {
 export async function getPreviousExerciseData(): Promise<
   Record<string, { weight: number; reps: number; sets: number }>
 > {
-  // Build from mock data
-  const mockPrev: Record<string, { weight: number; reps: number; sets: number }> = {};
-  for (const w of mockWorkoutStore) {
-    for (const ex of w.exercises) {
-      if (!mockPrev[ex.name]) {
-        mockPrev[ex.name] = { weight: ex.weight, reps: ex.reps, sets: ex.sets };
-      }
-    }
-  }
-
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    return mockPrev;
+    return {};
   }
 
   try {
     const user = await getUserProfile();
-    if (!user) return mockPrev;
+    if (!user) return {};
 
     const recentWorkouts = await prisma!.workoutLog.findMany({
       where: { userId: user.id },
@@ -277,7 +181,7 @@ export async function getPreviousExerciseData(): Promise<
       take: 10,
     });
 
-    if (recentWorkouts.length === 0) return mockPrev;
+    if (recentWorkouts.length === 0) return {};
 
     const prevData: Record<string, { weight: number; reps: number; sets: number }> = {};
     for (const w of recentWorkouts) {
@@ -288,21 +192,18 @@ export async function getPreviousExerciseData(): Promise<
       }
     }
 
-    return Object.keys(prevData).length > 0 ? prevData : mockPrev;
+    return prevData;
   } catch {
-    return mockPrev;
+    return {};
   }
 }
 
 // ─── Workout Detail: Get single workout by ID ───
 export async function getWorkoutById(id: string) {
-  // Check mock data first
-  const mockMatch = mockWorkoutStore.find((w) => w.id === id);
-
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    return mockMatch || null;
+    return null;
   }
 
   try {
@@ -310,9 +211,9 @@ export async function getWorkoutById(id: string) {
       where: { id },
       include: { exercises: true },
     });
-    return workout || mockMatch || null;
+    return workout || null;
   } catch {
-    return mockMatch || null;
+    return null;
   }
 }
 

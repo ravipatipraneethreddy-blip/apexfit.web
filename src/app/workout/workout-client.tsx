@@ -163,21 +163,31 @@ export default function WorkoutClient({
   const router = useRouter();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
-  const [workoutName, setWorkoutName] = useState("Push Day");
+  const [workoutName, setWorkoutName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [nextId, setNextId] = useState(100);
 
-  // Stopwatch state
-  const [startTime] = useState(Date.now());
+  // Template-first view: start with no exercises, user must pick a template
+  const [hasSelectedTemplate, setHasSelectedTemplate] = useState(false);
+
+  // Stopwatch state — does NOT auto-start
+  const [workoutStarted, setWorkoutStarted] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedSecs, setElapsedSecs] = useState(0);
 
   useEffect(() => {
+    if (!workoutStarted || !startTime) return;
     const interval = setInterval(() => {
       setElapsedSecs(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime]);
+  }, [workoutStarted, startTime]);
+
+  const handleStartWorkout = () => {
+    setWorkoutStarted(true);
+    setStartTime(Date.now());
+  };
 
   const formatElapsed = (totalSecs: number) => {
     const h = Math.floor(totalSecs / 3600);
@@ -187,29 +197,12 @@ export default function WorkoutClient({
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const [exercises, setExercises] = useState<ExerciseEntry[]>([
-    {
-      id: 1, name: "Barbell Bench Press",
-      sets: [
-        { id: 1, weight: 80, reps: 10, done: false },
-        { id: 2, weight: 80, reps: 8, done: false },
-        { id: 3, weight: 80, reps: 6, done: false },
-      ],
-    },
-    {
-      id: 2, name: "Incline Dumbbell Press",
-      sets: [
-        { id: 4, weight: 28, reps: 12, done: false },
-        { id: 5, weight: 28, reps: 10, done: false },
-        { id: 6, weight: 28, reps: 10, done: false },
-      ],
-    },
-  ]);
+  const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
 
   const selectTemplate = (template: (typeof WORKOUT_TEMPLATES)[0]) => {
     setWorkoutName(template.name === "Custom" ? "" : template.name);
+    let id = nextId;
     if (template.exercises.length > 0) {
-      let id = nextId;
       const newExercises: ExerciseEntry[] = template.exercises.map((name) => {
         const prev = previousData[name];
         const ex: ExerciseEntry = {
@@ -224,7 +217,19 @@ export default function WorkoutClient({
       });
       setNextId(id);
       setExercises(newExercises);
+    } else {
+      // Custom template — start with one empty exercise
+      setExercises([{
+        id: id++, name: "",
+        sets: [
+          { id: id++, weight: 0, reps: 10, done: false },
+          { id: id++, weight: 0, reps: 10, done: false },
+          { id: id++, weight: 0, reps: 10, done: false },
+        ],
+      }]);
+      setNextId(id);
     }
+    setHasSelectedTemplate(true);
     setShowTemplates(false);
   };
 
@@ -334,6 +339,123 @@ export default function WorkoutClient({
   // Helper: get previous data for an exercise
   const getPrev = (name: string) => previousData[name] || null;
 
+  // ─── Template Selection View (shown first) ───
+  if (!hasSelectedTemplate) {
+    return (
+      <div className="min-h-screen p-4 md:p-8 flex justify-center font-sans tracking-tight">
+        <div className="max-w-md w-full pb-24">
+          {/* Header */}
+          <header className="flex items-center gap-3 mb-8">
+            <Link href="/">
+              <button className="p-2 rounded-xl bg-secondary hover:bg-secondary/70 transition">
+                <ArrowLeft className="w-5 h-5 text-foreground" />
+              </button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Start Workout</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Choose a template to begin</p>
+            </div>
+          </header>
+
+          {/* Coach Tip */}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-primary/20 rounded-2xl p-4 mb-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-primary neon-glow" />
+            <div className="flex gap-3 pl-2">
+              <p className="text-sm text-foreground/90 leading-relaxed">
+                <strong className="text-primary">Coach AI:</strong> Pick a template or start custom. Focus on progressive overload — try to beat last session&apos;s numbers.
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Saved Templates */}
+          {dbTemplates.length > 0 && (
+            <div className="mb-6">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Your Saved Templates</span>
+              <div className="grid grid-cols-2 gap-3">
+                {dbTemplates.map((t: any, idx: number) => (
+                  <motion.div
+                    key={t.id || `db-${idx}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="relative"
+                  >
+                    <button
+                      onClick={() => selectTemplate(t)}
+                      className="w-full text-left p-4 rounded-2xl border border-primary/20 bg-card hover:border-primary/50 transition group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                          <Dumbbell className="w-3.5 h-3.5" />
+                        </div>
+                        <p className="font-bold text-sm truncate pr-4">{t.name}</p>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{t.exercises.length} exercises</p>
+                    </button>
+                    {t.id && (
+                      <button onClick={(e) => handleDeleteTemplate(e, t.id)} className="absolute top-2 right-2 text-muted-foreground hover:text-red-400 p-1.5 bg-background/80 rounded-lg backdrop-blur-sm transition z-10">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Built-in Templates */}
+          <div className="mb-6">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Workout Templates</span>
+            <div className="grid grid-cols-2 gap-3">
+              {WORKOUT_TEMPLATES.map((t, idx) => (
+                <motion.button
+                  key={t.name}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: (dbTemplates.length + idx) * 0.05 }}
+                  onClick={() => selectTemplate(t)}
+                  className="text-left p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition group"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-lg ${t.name === "Custom" ? "bg-emerald-400/10 text-emerald-400" : "bg-secondary text-muted-foreground group-hover:text-primary group-hover:bg-primary/10"} transition`}>
+                      {t.name === "Custom" ? <Plus className="w-3.5 h-3.5" /> : <Dumbbell className="w-3.5 h-3.5" />}
+                    </div>
+                    <p className="font-bold text-sm">{t.name}</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.exercises.length > 0 ? `${t.exercises.length} exercises` : "Build your own"}
+                  </p>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Workouts */}
+          {recentWorkouts.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">Recent Workouts</h3>
+              {recentWorkouts.slice(0, 3).map((workout: any) => (
+                <Link key={workout.id} href={`/workout/${workout.id}`}>
+                  <div className="glass-panel p-4 rounded-xl mb-3 flex justify-between items-center group hover:border-primary/30 transition cursor-pointer">
+                    <div>
+                      <p className="font-bold text-sm tracking-tight">{workout.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(workout.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary">{workout.exercises?.length || 0}</p>
+                      <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Exercises</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main Workout View (after template selected) ───
   return (
     <div className="min-h-screen p-4 md:p-8 flex justify-center font-sans tracking-tight">
       <div className="max-w-md w-full pb-24">
@@ -359,10 +481,21 @@ export default function WorkoutClient({
             <p className="text-xs text-muted-foreground mt-1">{totalCompletedSets}/{totalSets} sets completed</p>
           </div>
           <div className="flex items-center gap-1">
-            <div className="px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-mono font-bold text-primary mr-2 flex items-center gap-1.5 shadow-inner">
-              <TimerIcon className="w-3.5 h-3.5" />
-              {formatElapsed(elapsedSecs)}
-            </div>
+            {/* Stopwatch — user-controlled */}
+            {workoutStarted ? (
+              <div className="px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-mono font-bold text-primary mr-2 flex items-center gap-1.5 shadow-inner">
+                <TimerIcon className="w-3.5 h-3.5" />
+                {formatElapsed(elapsedSecs)}
+              </div>
+            ) : (
+              <button
+                onClick={handleStartWorkout}
+                className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/30 text-xs font-bold mr-2 flex items-center gap-1.5 hover:bg-primary/20 transition"
+              >
+                <Play className="w-3.5 h-3.5" />
+                Start
+              </button>
+            )}
             <button onClick={() => setShowTimer(!showTimer)} className={`p-2 rounded-xl transition ${showTimer ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-secondary"}`} title="Rest timer">
               <TimerIcon className="w-5 h-5" />
             </button>

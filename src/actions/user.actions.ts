@@ -228,7 +228,7 @@ export async function getUserStats() {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    return { totalWorkouts: 5, totalMeals: 14, memberSince: "Mar 2026" };
+    return { totalWorkouts: 0, totalMeals: 0, memberSince: "N/A" };
   }
 
   try {
@@ -250,7 +250,7 @@ export async function getUserStats() {
 
     return { totalWorkouts: workoutCount, totalMeals: mealCount, memberSince };
   } catch {
-    return { totalWorkouts: 5, totalMeals: 14, memberSince: "Mar 2026" };
+    return { totalWorkouts: 0, totalMeals: 0, memberSince: "N/A" };
   }
 }
 

@@ -19,17 +19,8 @@ export async function getProgressData() {
   if (!user) return { weightLogs: [], macroLogs: [] };
 
   const dbReady = await isDbAvailable();
-  if (!dbReady || user.id.startsWith("mock-")) {
-    return {
-      weightLogs: [
-        { date: new Date(Date.now() - 86400000 * 2).toLocaleDateString(), weight: 76.4 },
-        { date: new Date(Date.now() - 86400000).toLocaleDateString(), weight: 76.0 },
-        { date: new Date().toLocaleDateString(), weight: 75.8 },
-      ],
-      macroLogs: [
-        { date: new Date().toLocaleDateString(), calories: 2100, protein: 150, carbs: 200, fats: 60 }
-      ],
-    };
+  if (!dbReady) {
+    return { weightLogs: [], macroLogs: [] };
   }
 
   const rawWeights = await prisma.progressLog.findMany({
