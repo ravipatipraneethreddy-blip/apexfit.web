@@ -125,8 +125,9 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
         fats: res.fats,
         fiber: res.fiber,
       });
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error("[NutritionLookup]", e);
+      alert(e?.message || "Failed to look up nutrition data. Please try again.");
     }
     setIsLooking(false);
   };
