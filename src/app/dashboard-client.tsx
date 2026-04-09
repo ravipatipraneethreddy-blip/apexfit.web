@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import WaterTracker from "@/components/water-tracker";
-import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3 } from "lucide-react";
+import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3, Wheat, Droplet, Leaf } from "lucide-react";
 import Link from "next/link";
 import {
   AreaChart, Area, ResponsiveContainer, Tooltip, XAxis,
@@ -84,13 +85,30 @@ export default function DashboardClient({
   const targetCarbs = user.targetCarbs || 250;
   const targetFats = user.targetFats || 65;
 
-  // Real chart data from weightLogs
-  const chartData = weightLogs && weightLogs.length > 0
-    ? weightLogs.map((log: any) => ({
-        name: log.date.substring(0, 5), // short date
+  const totalFiber = meals.reduce((sum, m) => sum + (m.fiber || 0), 0);
+  const targetFiber = 30;
+
+  const [weightPeriod, setWeightPeriod] = useState<"1W" | "1M" | "3M">("1M");
+
+  const chartData = useMemo(() => {
+    if (!weightLogs || weightLogs.length === 0) return [{ name: "Today", weight: user.weight || 0 }];
+    const now = new Date().getTime();
+    const cutoffDate = new Date();
+    
+    if (weightPeriod === "1W") cutoffDate.setDate(cutoffDate.getDate() - 7);
+    else if (weightPeriod === "1M") cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+    else if (weightPeriod === "3M") cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+
+    const cutoff = cutoffDate.getTime();
+    const data = weightLogs
+      .filter((log) => new Date(log.date).getTime() >= cutoff)
+      .map((log: any) => ({
+        name: log.date.substring(0, 5),
         weight: log.weight || log.Weight,
-      }))
-    : [{ name: "Today", weight: user.weight || 0 }];
+      }));
+
+    return data.length > 0 ? data : [{ name: "Today", weight: user.weight || 0 }];
+  }, [weightLogs, weightPeriod, user.weight]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
@@ -171,10 +189,10 @@ export default function DashboardClient({
         </motion.div>
 
         {/* Main Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
           {[
             {
-              label: "Calories Hit",
+              label: "Calories",
               value: totalCals.toString(),
               sub: `/ ${targetCals}`,
               icon: Flame,
@@ -182,7 +200,7 @@ export default function DashboardClient({
               bg: "bg-orange-400/10",
             },
             {
-              label: "Protein Logged",
+              label: "Protein",
               value: `${totalPro}g`,
               sub: `/ ${targetPro}g`,
               icon: Activity,
@@ -190,12 +208,36 @@ export default function DashboardClient({
               bg: "bg-blue-400/10",
             },
             {
-              label: "Weight",
-              value: `${user.weight}kg`,
-              sub: `Target ${user.targetWeight || "-"}kg`,
-              icon: TrendingUp,
+              label: "Carbs",
+              value: `${totalCarbs}g`,
+              sub: `/ ${targetCarbs}g`,
+              icon: Wheat,
+              color: "text-yellow-400",
+              bg: "bg-yellow-400/10",
+            },
+            {
+              label: "Fats",
+              value: `${totalFats}g`,
+              sub: `/ ${targetFats}g`,
+              icon: Droplet,
               color: "text-emerald-400",
               bg: "bg-emerald-400/10",
+            },
+            {
+              label: "Fiber",
+              value: `${totalFiber}g`,
+              sub: `/ ${targetFiber}g`,
+              icon: Leaf,
+              color: "text-green-400",
+              bg: "bg-green-400/10",
+            },
+            {
+              label: "Weight",
+              value: `${user.weight}kg`,
+              sub: `Tgt ${user.targetWeight || "-"}kg`,
+              icon: TrendingUp,
+              color: "text-purple-400",
+              bg: "bg-purple-400/10",
             },
             {
               label: "Workouts",
@@ -211,17 +253,17 @@ export default function DashboardClient({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
-              className="glass-panel rounded-2xl p-5 flex flex-col justify-between"
+              className="glass-panel rounded-2xl p-4 flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
-                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
-                  <stat.icon className="w-4 h-4" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-muted-foreground font-medium">{stat.label}</span>
+                <div className={`p-1.5 rounded-lg ${stat.bg} ${stat.color}`}>
+                  <stat.icon className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight">{stat.value}</span>
-                <span className="text-xs text-muted-foreground hidden sm:inline">{stat.sub}</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold tracking-tight">{stat.value}</span>
+                <span className="text-[10px] text-muted-foreground truncate">{stat.sub}</span>
               </div>
             </motion.div>
           ))}
@@ -241,13 +283,22 @@ export default function DashboardClient({
                 {user.goal.replace(/_/g, " ")} Progression
               </h3>
               <div className="flex gap-2">
-                <span className="text-xs font-medium px-2 py-1 rounded bg-secondary text-foreground cursor-pointer">
+                <span 
+                  onClick={() => setWeightPeriod("1W")}
+                  className={`text-xs font-medium px-2 py-1 rounded cursor-pointer transition ${weightPeriod === "1W" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(0,229,255,0.4)]" : "bg-secondary text-foreground hover:bg-secondary/80"}`}
+                >
                   1W
                 </span>
-                <span className="text-xs font-medium px-2 py-1 rounded bg-primary text-primary-foreground cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.4)]">
+                <span 
+                  onClick={() => setWeightPeriod("1M")}
+                  className={`text-xs font-medium px-2 py-1 rounded cursor-pointer transition ${weightPeriod === "1M" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(0,229,255,0.4)]" : "bg-secondary text-foreground hover:bg-secondary/80"}`}
+                >
                   1M
                 </span>
-                <span className="text-xs font-medium px-2 py-1 rounded bg-secondary text-foreground cursor-pointer">
+                <span 
+                  onClick={() => setWeightPeriod("3M")}
+                  className={`text-xs font-medium px-2 py-1 rounded cursor-pointer transition ${weightPeriod === "3M" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(0,229,255,0.4)]" : "bg-secondary text-foreground hover:bg-secondary/80"}`}
+                >
                   3M
                 </span>
               </div>
@@ -388,21 +439,6 @@ export default function DashboardClient({
           </motion.div>
         </div>
 
-        {/* Daily Macro Progress Bars */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="glass-panel rounded-2xl p-6"
-        >
-          <h3 className="text-lg font-semibold tracking-tight mb-4">Today&apos;s Nutrition</h3>
-          <div className="space-y-4">
-            <AnimatedBar value={totalCals} max={targetCals} color="#f97316" label="Calories" unit=" kcal" />
-            <AnimatedBar value={totalPro} max={targetPro} color="#60a5fa" label="Protein" unit="g" />
-            <AnimatedBar value={totalCarbs} max={targetCarbs} color="#fbbf24" label="Carbs" unit="g" />
-            <AnimatedBar value={totalFats} max={targetFats} color="#34d399" label="Fats" unit="g" />
-          </div>
-        </motion.div>
       </div>
     </div>
   );
