@@ -60,6 +60,9 @@ function AnimatedBar({
     </div>
   );
 }
+
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
 export default function DashboardClient({
   user,
   meals,
@@ -75,17 +78,17 @@ export default function DashboardClient({
   waterMl?: number;
   weightLogs?: any[];
 }) {
-  const totalCals = meals.reduce((sum, m) => sum + m.calories, 0);
-  const totalPro = meals.reduce((sum, m) => sum + m.protein, 0);
-  const totalCarbs = meals.reduce((sum, m) => sum + (m.carbs || 0), 0);
-  const totalFats = meals.reduce((sum, m) => sum + (m.fats || 0), 0);
+  const totalCals = Math.round(meals.reduce((sum, m) => sum + m.calories, 0));
+  const totalPro = r1(meals.reduce((sum, m) => sum + m.protein, 0));
+  const totalCarbs = r1(meals.reduce((sum, m) => sum + (m.carbs || 0), 0));
+  const totalFats = r1(meals.reduce((sum, m) => sum + (m.fats || 0), 0));
 
   const targetCals = user.targetCalories || 2500;
   const targetPro = user.targetProtein || 180;
   const targetCarbs = user.targetCarbs || 250;
   const targetFats = user.targetFats || 65;
 
-  const totalFiber = meals.reduce((sum, m) => sum + (m.fiber || 0), 0);
+  const totalFiber = r1(meals.reduce((sum, m) => sum + (m.fiber || 0), 0));
   const targetFiber = 30;
 
   const [weightPeriod, setWeightPeriod] = useState<"1W" | "1M" | "3M">("1M");
