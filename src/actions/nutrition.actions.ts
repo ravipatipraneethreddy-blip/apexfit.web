@@ -1132,6 +1132,36 @@ for (const [key, entry] of Object.entries(FOOD_DB)) {
   }
 }
 
+// ─── Food Suggestions for Autocomplete ───────────────────────────
+export async function getFoodSuggestions(query: string): Promise<{ name: string; serving: string; cal: number }[]> {
+  if (!query || query.length < 2) return [];
+  const q = query.toLowerCase().trim();
+  const results: { name: string; serving: string; cal: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const [key, entry] of Object.entries(FOOD_DB)) {
+    if (seen.size >= 8) break;
+    if (key.includes(q) && !seen.has(key)) {
+      seen.add(key);
+      results.push({ name: key, serving: entry.servingLabel, cal: entry.cal });
+    }
+  }
+
+  // Also search aliases
+  if (seen.size < 8) {
+    for (const [alias, key] of ALIAS_MAP.entries()) {
+      if (seen.size >= 8) break;
+      if (alias.includes(q) && !seen.has(key)) {
+        seen.add(key);
+        const entry = FOOD_DB[key];
+        results.push({ name: key, serving: entry.servingLabel, cal: entry.cal });
+      }
+    }
+  }
+
+  return results;
+}
+
 // ─── Types ───────────────────────────────────────────────────────
 export type NutritionResult = {
   foodName: string;

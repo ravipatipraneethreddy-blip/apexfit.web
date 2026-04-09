@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Loader2, Search, Trash2, Check, Edit3,
-  BrainCircuit, Database, HelpCircle, ScanLine, X
+  BrainCircuit, Database, HelpCircle, ScanLine, X, Plus, Minus
 } from "lucide-react";
 import Link from "next/link";
 import { logMeal, deleteMeal } from "@/actions/diet.actions";
-import { lookupNutrition, type NutritionResult } from "@/actions/nutrition.actions";
+import { lookupNutrition, getFoodSuggestions, type NutritionResult } from "@/actions/nutrition.actions";
 import { useRouter } from "next/navigation";
+
+// Round to 1 decimal place
+const r1 = (n: number) => Math.round(n * 10) / 10;
 
 // Circular progress ring component
 function MacroRing({
@@ -36,7 +39,7 @@ function MacroRing({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-sm font-bold leading-none">{value}</span>
+          <span className="text-sm font-bold leading-none">{r1(value)}</span>
           <span className="text-[9px] text-muted-foreground">{unit}</span>
         </div>
       </div>
@@ -76,6 +79,137 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAllQuickAdds, setShowAllQuickAdds] = useState(false);
+  const [activeQuickCategory, setActiveQuickCategory] = useState("All");
+  const [isAddingQuick, setIsAddingQuick] = useState(false);
+  const [newQuickLabel, setNewQuickLabel] = useState("");
+  const [newQuickEmoji, setNewQuickEmoji] = useState("🍽️");
+  const [newQuickCategory, setNewQuickCategory] = useState("Custom");
+  const [isEditingQuickAdds, setIsEditingQuickAdds] = useState(false);
+
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<{ name: string; serving: string; cal: number }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Default Quick Add items
+  const defaultQuickAdds = [
+    { label: "2 Eggs", emoji: "🥚", category: "Breakfast" },
+    { label: "3 Idli", emoji: "🥟", category: "Breakfast" },
+    { label: "1 Dosa", emoji: "🫓", category: "Breakfast" },
+    { label: "2 Chapati", emoji: "🫓", category: "Breakfast" },
+    { label: "1 Paratha", emoji: "🫓", category: "Breakfast" },
+    { label: "Poha", emoji: "🍚", category: "Breakfast" },
+    { label: "Upma", emoji: "🥣", category: "Breakfast" },
+    { label: "Oats", emoji: "🥣", category: "Breakfast" },
+    { label: "1 Banana", emoji: "🍌", category: "Breakfast" },
+    { label: "Rice & Dal", emoji: "🍚", category: "Lunch" },
+    { label: "Chicken Biryani", emoji: "🍗", category: "Lunch" },
+    { label: "Curd Rice", emoji: "🍚", category: "Lunch" },
+    { label: "Sambar", emoji: "🥘", category: "Lunch" },
+    { label: "Rajma", emoji: "🫘", category: "Lunch" },
+    { label: "Chole", emoji: "🫘", category: "Lunch" },
+    { label: "Paneer Butter Masala", emoji: "🧀", category: "Lunch" },
+    { label: "Butter Chicken", emoji: "🍗", category: "Lunch" },
+    { label: "Fish Curry", emoji: "🐟", category: "Lunch" },
+    { label: "Chicken Breast", emoji: "🍗", category: "Protein" },
+    { label: "Protein Shake", emoji: "🥤", category: "Protein" },
+    { label: "Greek Yogurt", emoji: "🥣", category: "Protein" },
+    { label: "100g Paneer", emoji: "🧀", category: "Protein" },
+    { label: "Egg White", emoji: "🥚", category: "Protein" },
+    { label: "Tandoori Chicken", emoji: "🍗", category: "Protein" },
+    { label: "1 Samosa", emoji: "🥟", category: "Snacks" },
+    { label: "Tea", emoji: "☕", category: "Snacks" },
+    { label: "Coffee", emoji: "☕", category: "Snacks" },
+    { label: "1 Apple", emoji: "🍎", category: "Snacks" },
+    { label: "Almonds", emoji: "🥜", category: "Snacks" },
+    { label: "6 Pani Puri", emoji: "🥟", category: "Snacks" },
+    { label: "Vada Pav", emoji: "🍔", category: "Snacks" },
+    { label: "1 tbsp Ghee", emoji: "🧈", category: "Snacks" },
+    { label: "1 Mango", emoji: "🥭", category: "Snacks" },
+  ];
+
+  // Load custom quick adds from localStorage
+  const [customQuickAdds, setCustomQuickAdds] = useState<{ label: string; emoji: string; category: string }[]>([]);
+  const [deletedDefaults, setDeletedDefaults] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("apexfit-quick-adds");
+      if (saved) setCustomQuickAdds(JSON.parse(saved));
+      const deleted = localStorage.getItem("apexfit-quick-deleted");
+      if (deleted) setDeletedDefaults(JSON.parse(deleted));
+    } catch {}
+  }, []);
+
+  const saveCustomQuickAdds = (items: typeof customQuickAdds) => {
+    setCustomQuickAdds(items);
+    localStorage.setItem("apexfit-quick-adds", JSON.stringify(items));
+  };
+
+  const saveDeletedDefaults = (items: string[]) => {
+    setDeletedDefaults(items);
+    localStorage.setItem("apexfit-quick-deleted", JSON.stringify(items));
+  };
+
+  const handleAddQuickItem = () => {
+    if (!newQuickLabel.trim()) return;
+    const newItem = { label: newQuickLabel.trim(), emoji: newQuickEmoji, category: newQuickCategory };
+    saveCustomQuickAdds([...customQuickAdds, newItem]);
+    setNewQuickLabel("");
+    setNewQuickEmoji("🍽️");
+    setIsAddingQuick(false);
+  };
+
+  const handleDeleteQuickItem = (label: string, isCustom: boolean) => {
+    if (isCustom) {
+      saveCustomQuickAdds(customQuickAdds.filter((i) => i.label !== label));
+    } else {
+      saveDeletedDefaults([...deletedDefaults, label]);
+    }
+  };
+
+  const allQuickAddItems = [
+    ...defaultQuickAdds.filter((i) => !deletedDefaults.includes(i.label)),
+    ...customQuickAdds,
+  ];
+
+  const quickAddCategories = ["All", "Breakfast", "Lunch", "Protein", "Snacks", "Custom"];
+  const filteredQuickAdds = activeQuickCategory === "All"
+    ? allQuickAddItems
+    : allQuickAddItems.filter((i) => i.category === activeQuickCategory);
+
+  // Debounced autocomplete
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await getFoodSuggestions(value);
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+  }, []);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const todayStr = new Date().toDateString();
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -107,11 +241,11 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
 
   const filteredMeals = meals.filter((m) => new Date(m.date).toDateString() === selectedDate.toDateString());
 
-  const eatenCals = filteredMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
-  const eatenPro = filteredMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
-  const eatenCarb = filteredMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
-  const eatenFat = filteredMeals.reduce((sum: number, m: any) => sum + m.fats, 0);
-  const eatenFiber = filteredMeals.reduce((sum: number, m: any) => sum + (m.fiber || 0), 0);
+  const eatenCals = r1(filteredMeals.reduce((sum: number, m: any) => sum + m.calories, 0));
+  const eatenPro = r1(filteredMeals.reduce((sum: number, m: any) => sum + m.protein, 0));
+  const eatenCarb = r1(filteredMeals.reduce((sum: number, m: any) => sum + m.carbs, 0));
+  const eatenFat = r1(filteredMeals.reduce((sum: number, m: any) => sum + m.fats, 0));
+  const eatenFiber = r1(filteredMeals.reduce((sum: number, m: any) => sum + (m.fiber || 0), 0));
 
   const handleLookup = async () => {
     if (!searchInput.trim()) return;
@@ -310,11 +444,11 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Remaining</p>
               <h3 className="text-3xl font-bold text-primary">
-                {Math.max(TARGET_CALS - eatenCals, 0)}{" "}
+                {r1(Math.max(TARGET_CALS - eatenCals, 0))}{" "}
                 <span className="text-lg text-muted-foreground font-medium">kcal</span>
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {eatenCals} eaten of {TARGET_CALS}
+                {r1(eatenCals)} eaten of {TARGET_CALS}
               </p>
             </div>
             <MacroRing value={eatenCals} max={TARGET_CALS} color="#00e5ff" label="Total" unit="kcal" />
@@ -335,12 +469,13 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
           className="mb-6"
         >
           <div className="relative mb-6 flex gap-2">
-            <div className="relative flex-1">
+            <div className="relative flex-1" ref={suggestionsRef}>
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 placeholder={isFutureDate ? "Plan a meal... (e.g. 200g rice)" : "What did you eat? (e.g. 200g rice)"}
                 className="w-full bg-card border border-primary/20 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-primary transition shadow-sm placeholder:text-muted-foreground/50 pr-20"
               />
@@ -351,6 +486,47 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
               >
                 {isLooking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
               </button>
+
+              {/* Autocomplete Dropdown */}
+              <AnimatePresence>
+                {showSuggestions && suggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute top-full left-0 right-0 mt-1 bg-card border border-primary/20 rounded-xl shadow-lg z-50 overflow-hidden"
+                  >
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={`${s.name}-${i}`}
+                        onClick={() => {
+                          setSearchInput(s.name);
+                          setShowSuggestions(false);
+                          setIsLooking(true);
+                          lookupNutrition(s.name).then((result) => {
+                            setLookupResult(result);
+                            setEditValues({
+                              calories: result.calories,
+                              protein: result.protein,
+                              carbs: result.carbs,
+                              fats: result.fats,
+                              fiber: result.fiber,
+                            });
+                            setIsLooking(false);
+                          }).catch(() => setIsLooking(false));
+                        }}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-primary/5 transition text-left border-b border-border/30 last:border-0"
+                      >
+                        <div>
+                          <p className="text-sm font-medium capitalize">{s.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{s.serving}</p>
+                        </div>
+                        <span className="text-xs text-primary font-bold">{s.cal} kcal/100g</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <button
               onClick={() => {
@@ -450,7 +626,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
                         />
                       ) : (
                         <p className={`text-lg font-bold ${m.color}`}>
-                          {lookupResult[m.key as keyof NutritionResult]}
+                          {r1(Number(lookupResult[m.key as keyof NutritionResult]) || 0)}
                         </p>
                       )}
                       <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">
@@ -494,47 +670,181 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
           transition={{ delay: 0.15 }}
           className="mb-6"
         >
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Quick Add
-          </h3>
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-            {[
-              { label: "2 Eggs", emoji: "🥚" },
-              { label: "1 Chapati", emoji: "🫓" },
-              { label: "Chicken Breast", emoji: "🍗" },
-              { label: "Rice & Dal", emoji: "🍚" },
-              { label: "Protein Shake", emoji: "🥤" },
-              { label: "1 Banana", emoji: "🍌" },
-              { label: "Greek Yogurt", emoji: "🥣" },
-              { label: "3 Idli", emoji: "🥟" },
-            ].map((item) => (
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Quick Add
+            </h3>
+            <div className="flex items-center gap-2">
               <button
-                key={item.label}
-                onClick={() => {
-                  setSearchInput(item.label);
-                  // Auto-trigger lookup
-                  setIsLooking(true);
-                  lookupNutrition(item.label).then((result) => {
-                    setLookupResult(result);
-                    setEditValues({
-                      calories: result.calories,
-                      protein: result.protein,
-                      carbs: result.carbs,
-                      fats: result.fats,
-                      fiber: result.fiber,
-                    });
-                    setIsLooking(false);
-                  });
-                }}
-                disabled={isLooking}
-                className="shrink-0 px-3 py-2 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
+                onClick={() => setIsEditingQuickAdds(!isEditingQuickAdds)}
+                className={`text-[10px] font-semibold transition ${isEditingQuickAdds ? "text-red-400" : "text-muted-foreground hover:text-foreground"}`}
               >
-                <span className="text-base">{item.emoji}</span>
-                {item.label}
+                {isEditingQuickAdds ? "Done" : "Edit"}
+              </button>
+              <button
+                onClick={() => setIsAddingQuick(true)}
+                className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition"
+                title="Add custom food"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => setShowAllQuickAdds(!showAllQuickAdds)}
+                className="text-[10px] text-primary font-semibold hover:underline"
+              >
+                {showAllQuickAdds ? "Less" : "All"}
+              </button>
+            </div>
+          </div>
+
+          {/* Category Tabs */}
+          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1 scrollbar-hide">
+            {quickAddCategories.filter((c) => c === "All" || c === "Custom" ? allQuickAddItems.some((i) => c === "All" || i.category === c) : true).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveQuickCategory(cat)}
+                className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition ${
+                  activeQuickCategory === cat
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                {cat}
               </button>
             ))}
           </div>
+
+          <div className={`flex ${showAllQuickAdds ? "flex-wrap" : "overflow-x-auto scrollbar-hide"} gap-2 pb-2 -mx-1 px-1`}>
+            {(showAllQuickAdds ? filteredQuickAdds : filteredQuickAdds.slice(0, 8)).map((item) => (
+              <div key={item.label} className="relative shrink-0">
+                {isEditingQuickAdds && (
+                  <button
+                    onClick={() => handleDeleteQuickItem(item.label, item.category === "Custom" || customQuickAdds.some((c) => c.label === item.label))}
+                    className="absolute -top-1.5 -right-1.5 z-10 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm"
+                  >
+                    <Minus className="w-2.5 h-2.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (isEditingQuickAdds) return;
+                    setSearchInput(item.label);
+                    setIsLooking(true);
+                    lookupNutrition(item.label).then((result) => {
+                      setLookupResult(result);
+                      setEditValues({
+                        calories: result.calories,
+                        protein: result.protein,
+                        carbs: result.carbs,
+                        fats: result.fats,
+                        fiber: result.fiber,
+                      });
+                      setIsLooking(false);
+                    }).catch(() => setIsLooking(false));
+                  }}
+                  disabled={isLooking || isEditingQuickAdds}
+                  className={`px-3 py-2 rounded-xl border bg-card flex items-center gap-1.5 text-xs font-medium transition ${
+                    isEditingQuickAdds
+                      ? "border-red-500/30 animate-pulse"
+                      : "border-border hover:border-primary/50 hover:bg-primary/5 disabled:opacity-50"
+                  }`}
+                >
+                  <span className="text-base">{item.emoji}</span>
+                  {item.label}
+                </button>
+              </div>
+            ))}
+          </div>
         </motion.div>
+
+        {/* ─── Add Custom Quick Add Modal ─── */}
+        <AnimatePresence>
+          {isAddingQuick && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setIsAddingQuick(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-card w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-primary/20"
+              >
+                <h3 className="font-bold text-sm mb-4">Add Quick Add Item</h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Food Name</label>
+                    <input
+                      type="text"
+                      value={newQuickLabel}
+                      onChange={(e) => setNewQuickLabel(e.target.value)}
+                      placeholder="e.g. 2 Roti with Sabzi"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm mt-1 focus:outline-none focus:border-primary"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Emoji</label>
+                      <div className="flex gap-1.5 mt-1 flex-wrap">
+                        {["🍚", "🍗", "🥚", "🫓", "🥣", "🥤", "🍌", "☕", "🥜", "🍎", "🐟", "🍽️"].map((e) => (
+                          <button
+                            key={e}
+                            onClick={() => setNewQuickEmoji(e)}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition ${
+                              newQuickEmoji === e ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary hover:bg-secondary/70"
+                            }`}
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Category</label>
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      {["Breakfast", "Lunch", "Protein", "Snacks", "Custom"].map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setNewQuickCategory(c)}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition ${
+                            newQuickCategory === c ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-secondary/70"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-5">
+                  <button
+                    onClick={handleAddQuickItem}
+                    disabled={!newQuickLabel.trim()}
+                    className="flex-1 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-30 transition text-sm"
+                  >
+                    <Plus className="w-4 h-4" /> Add
+                  </button>
+                  <button
+                    onClick={() => setIsAddingQuick(false)}
+                    className="px-4 py-2.5 bg-secondary text-muted-foreground rounded-xl hover:bg-secondary/70 transition text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ─── Today's Log ─── */}
         <div className="space-y-3">
@@ -557,15 +867,15 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{item.foodName}</p>
                   <div className="text-[10px] text-muted-foreground mt-1 flex gap-2">
-                    <span className="text-blue-400">{item.protein}P</span>
-                    <span className="text-orange-400">{item.carbs}C</span>
-                    <span className="text-emerald-400">{item.fats}F</span>
-                    {item.fiber > 0 && <span className="text-purple-400">{item.fiber}Fib</span>}
+                    <span className="text-blue-400">{r1(item.protein)}P</span>
+                    <span className="text-orange-400">{r1(item.carbs)}C</span>
+                    <span className="text-emerald-400">{r1(item.fats)}F</span>
+                    {item.fiber > 0 && <span className="text-purple-400">{r1(item.fiber)}Fib</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="font-bold text-primary">{item.calories}</p>
+                    <p className="font-bold text-primary">{r1(item.calories)}</p>
                     <p className="text-[10px] text-muted-foreground">kcal</p>
                   </div>
                   <button
