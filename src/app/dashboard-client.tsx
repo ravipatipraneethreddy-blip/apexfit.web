@@ -438,6 +438,20 @@ export default function DashboardClient({
                   </div>
                 </div>
               </Link>
+              <Link
+                href="/exercises"
+                className="w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-background rounded-full group-hover:bg-primary/20 transition text-pink-400">
+                    <Dumbbell className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-sm block">Exercise Library</span>
+                    <span className="text-[10px] text-muted-foreground">Animated instructional GIFs</span>
+                  </div>
+                </div>
+              </Link>
             </div>
           </motion.div>
         </div>

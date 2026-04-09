@@ -142,3 +142,17 @@ model WaterLog {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model CachedExercise {
+  id              String   @id // ExerciseDB provides unique string IDs like "0001"
+  name            String
+  bodyPart        String
+  target          String
+  equipment       String
+  gifUrl          String
+  instructions    String[]
+  secondaryMuscles String[]
+  
+  createdAt       DateTime @default(now())
+}
+
