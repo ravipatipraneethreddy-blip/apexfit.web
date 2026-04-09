@@ -15,34 +15,43 @@ export async function checkAndSeedExercises() {
       await prisma.cachedExercise.deleteMany({});
     }
 
-    // 2. Fetch from RapidAPI if our DB is empty
+    // 2. Fetch from RapidAPI with safe pagination
     const apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) {
       return { error: "Missing RAPIDAPI_KEY in environment variables." };
     }
 
-    const url = "https://exercisedb.p.rapidapi.com/exercises?limit=1500&offset=0";
-    const options = {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": apiKey,
-        "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
-      },
-    };
+    let allExercises: any[] = [];
+    const limit = 100;
+    
+    for (let offset = 0; offset < 1400; offset += limit) {
+      const url = `https://exercisedb.p.rapidapi.com/exercises?limit=${limit}&offset=${offset}`;
+      const options = {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": apiKey,
+          "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
+        },
+      };
 
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      return { error: "Failed to fetch from ExerciseDB API." };
+      const response = await fetch(url, options);
+      if (!response.ok) break;
+
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) break;
+
+      allExercises = [...allExercises, ...data];
+      
+      // If we got less than the limit, we hit the end
+      if (data.length < limit) break;
     }
 
-    const data = await response.json();
-    
-    if (!Array.isArray(data) || data.length === 0) {
-      return { error: "Invalid data received from ExerciseDB." };
+    if (allExercises.length === 0) {
+      return { error: "Failed to fetch any data from ExerciseDB." };
     }
 
     // 3. Save into our local DB cache using createMany
-    const insertData = data.map((ex: any) => ({
+    const insertData = allExercises.map((ex: any) => ({
       id: ex.id,
       name: ex.name,
       bodyPart: ex.bodyPart,
@@ -69,10 +78,10 @@ export async function getExercises(query: string = "", bodyPart: string = "All",
   try {
     const whereClause: any = {};
     if (query) {
-      whereClause.name = { contains: query.toLowerCase() };
+      whereClause.name = { contains: query, mode: "insensitive" };
     }
     if (bodyPart !== "All") {
-      whereClause.bodyPart = { equals: bodyPart.toLowerCase() };
+      whereClause.bodyPart = { equals: bodyPart, mode: "insensitive" };
     }
 
     const exercises = await prisma.cachedExercise.findMany({
