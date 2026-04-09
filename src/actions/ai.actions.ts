@@ -10,7 +10,7 @@ export async function getCoachAnalysis(timezone: string = "Asia/Kolkata") {
   if (!user) return defaultRes;
 
   const apiKey = process.env.OPENAI_API_KEY;
-  const useMock = !apiKey || apiKey === "your-openai-api-key-here";
+  const noApiKey = !apiKey || apiKey === "your-openai-api-key-here";
 
   const meals = await getTodaysMeals(timezone);
   const workouts = await getRecentWorkouts();
@@ -18,7 +18,7 @@ export async function getCoachAnalysis(timezone: string = "Asia/Kolkata") {
   const totalCals = meals.reduce((acc: number, meal: any) => acc + meal.calories, 0);
   const totalProtein = meals.reduce((acc: number, meal: any) => acc + meal.protein, 0);
 
-  if (useMock) {
+  if (noApiKey) {
     return {
       adherence: totalCals > (user.targetCalories || 2000) ? "Over Calorie Target" : "On Track",
       insight: `Today: ${totalCals} kcal across ${meals.length} meals (${totalProtein}g protein). ${workouts.length > 0 ? "Great job hitting the gym!" : "No workouts logged today."}`,
@@ -65,14 +65,10 @@ export async function getCoachAnalysis(timezone: string = "Asia/Kolkata") {
 
 export async function generateDailyMealPlan(remainingCals: number, remainingPro: number, remainingCarbs: number, remainingFats: number, preference: string) {
   const apiKey = process.env.OPENAI_API_KEY;
-  const useMock = !apiKey || apiKey === "your-openai-api-key-here";
+  const noApiKey = !apiKey || apiKey === "your-openai-api-key-here";
 
-  if (useMock || remainingCals <= 0) {
-    return [
-      { foodName: "Mock AI Chicken Salad", calories: Math.round(remainingCals * 0.4), protein: Math.round(remainingPro * 0.4), carbs: Math.round(remainingCarbs * 0.4), fats: Math.round(remainingFats * 0.4) },
-      { foodName: "Mock AI Protein Shake", calories: Math.round(remainingCals * 0.2), protein: Math.round(remainingPro * 0.2), carbs: Math.round(remainingCarbs * 0.2), fats: Math.round(remainingFats * 0.2) },
-      { foodName: "Mock AI Rice Bowl", calories: Math.round(remainingCals * 0.4), protein: Math.round(remainingPro * 0.4), carbs: Math.round(remainingCarbs * 0.4), fats: Math.round(remainingFats * 0.4) }
-    ];
+  if (noApiKey || remainingCals <= 0) {
+    return [];
   }
 
   try {

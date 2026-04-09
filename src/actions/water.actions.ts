@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-// In-memory water log for mock mode (per day)
-let mockWaterLog: { id: string; amount: number; time: Date }[] = [];
-let mockWaterNextId = 1;
+// In-memory water tracking (resets on server restart / redeploy)
+// TODO: Add WaterLog table to Prisma schema for persistence
+let waterLog: { id: string; amount: number; time: Date }[] = [];
+let waterNextId = 1;
 
 export async function logWater(amountMl: number) {
-  mockWaterLog.push({
-    id: `water-${mockWaterNextId++}`,
+  waterLog.push({
+    id: `water-${waterNextId++}`,
     amount: amountMl,
     time: new Date(),
   });
@@ -20,14 +21,14 @@ export async function getTodaysWater(): Promise<{ totalMl: number; logs: { id: s
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const todaysLogs = mockWaterLog.filter((l) => new Date(l.time) >= today);
+  const todaysLogs = waterLog.filter((l) => new Date(l.time) >= today);
   const totalMl = todaysLogs.reduce((sum, l) => sum + l.amount, 0);
 
   return { totalMl, logs: todaysLogs };
 }
 
 export async function resetWater() {
-  mockWaterLog = [];
+  waterLog = [];
   revalidatePath("/");
   return { success: true };
 }

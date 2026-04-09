@@ -35,11 +35,9 @@ export async function registerUser(formData: FormData) {
 
   const dbReady = await isDbAvailable();
 
-  // Mock mode — no DB connection
+  // DB unavailable — cannot register
   if (!dbReady) {
-    console.warn("[ApexFit] DB not reachable. Using mock registration.");
-    await createSession("mock-user-1");
-    redirect("/onboarding");
+    return { error: "Database is not available. Please try again later." };
   }
 
   // DB mode
@@ -91,11 +89,9 @@ export async function loginUser(formData: FormData) {
 
   const dbReady = await isDbAvailable();
 
-  // Mock mode
+  // DB unavailable — cannot login
   if (!dbReady) {
-    console.warn("[ApexFit] DB not reachable. Using mock login.");
-    await createSession("mock-user-1");
-    redirect("/");
+    return { error: "Database is not available. Please try again later." };
   }
 
   let shouldRedirect = false;

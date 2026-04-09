@@ -16,26 +16,7 @@ async function isDbAvailable(): Promise<boolean> {
   }
 }
 
-// Mutable mock user for when DB is not available
-let MOCK_USER: Record<string, any> = {
-  id: "mock-user-1",
-  email: "test@apexfit.com",
-  name: "Player 1",
-  gender: "MALE",
-  age: 25,
-  height: 175,
-  weight: 76.4,
-  targetWeight: 72,
-  goal: "FAT_LOSS",
-  dietPreference: "ANY",
-  activityLevel: "MODERATE",
-  streakDays: 12,
-  targetCalories: 2280,
-  targetProtein: 153,
-  targetCarbs: 228,
-  targetFats: 63,
-  createdAt: new Date(),
-};
+
 
 export async function onboardUser(formData: FormData) {
   const ageStr = formData.get("age") as string;
@@ -68,18 +49,7 @@ export async function onboardUser(formData: FormData) {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    // Update mock user in memory
-    MOCK_USER = {
-      ...MOCK_USER,
-      age, height, weight,
-      gender: gender || "MALE",
-      goal, dietPreference, activityLevel,
-      targetCalories: tdee.calories,
-      targetProtein: tdee.protein,
-      targetCarbs: tdee.carbs,
-      targetFats: tdee.fats,
-    };
-    return { success: true, tdee };
+    throw new Error("Database is not available. Please try again later.");
   }
 
   const session = await getSession();
@@ -121,39 +91,7 @@ export async function updateUserProfile(formData: FormData) {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    // Update mock user in memory + recalculate TDEE
-    const updatedWeight = weightStr ? parseFloat(weightStr) : MOCK_USER.weight;
-    const updatedGoal = goal || MOCK_USER.goal;
-    const updatedActivity = activityLevel || MOCK_USER.activityLevel;
-    const updatedGender = gender || MOCK_USER.gender || "MALE";
-
-    const tdee = calculateTDEE({
-      weight: updatedWeight,
-      height: MOCK_USER.height,
-      age: MOCK_USER.age,
-      gender: updatedGender,
-      activityLevel: updatedActivity,
-      goal: updatedGoal,
-    });
-
-    MOCK_USER = {
-      ...MOCK_USER,
-      ...(name && { name }),
-      ...(weightStr && { weight: updatedWeight }),
-      ...(targetWeightStr && { targetWeight: parseFloat(targetWeightStr) }),
-      ...(goal && { goal: updatedGoal }),
-      ...(gender && { gender: updatedGender }),
-      ...(dietPreference && { dietPreference }),
-      ...(activityLevel && { activityLevel: updatedActivity }),
-      targetCalories: tdee.calories,
-      targetProtein: tdee.protein,
-      targetCarbs: tdee.carbs,
-      targetFats: tdee.fats,
-    };
-
-    revalidatePath("/");
-    revalidatePath("/profile");
-    return { success: true };
+    throw new Error("Database is not available. Please try again later.");
   }
 
   const session = await getSession();
@@ -208,7 +146,7 @@ export async function getUserProfile() {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
-    return MOCK_USER;
+    return null;
   }
 
   try {
@@ -218,9 +156,9 @@ export async function getUserProfile() {
     const user = await prisma!.user.findUnique({
       where: { id: session.userId },
     });
-    return user || MOCK_USER;
+    return user || null;
   } catch {
-    return MOCK_USER;
+    return null;
   }
 }
 
@@ -258,11 +196,7 @@ export async function getLeaderboard() {
   const dbReady = await isDbAvailable();
   
   if (!dbReady) {
-    return [
-      { name: "Praneeth", streakDays: MOCK_USER.streakDays, badges: 3 },
-      { name: "Sarah J.", streakDays: 8, badges: 2 },
-      { name: "Mike T.", streakDays: 5, badges: 1 },
-    ];
+    return [];
   }
 
   try {

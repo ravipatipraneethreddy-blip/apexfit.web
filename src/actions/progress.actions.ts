@@ -68,8 +68,8 @@ export async function logWeight(formData: FormData) {
   if (!user) return { error: "Unauthorized" };
 
   const dbReady = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
-  if (!dbReady || user.id.startsWith("mock-")) {
-    return { error: "Database unavailable for mock accounts" };
+  if (!dbReady) {
+    return { error: "Database unavailable" };
   }
 
   const weightStr = formData.get("weight") as string;

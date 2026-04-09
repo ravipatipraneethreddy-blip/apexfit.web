@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Loader2, Search, Trash2, Sparkles, Check, Edit3,
+  ArrowLeft, Loader2, Search, Trash2, Check, Edit3,
   BrainCircuit, Database, HelpCircle, ScanLine, X
 } from "lucide-react";
 import Link from "next/link";
 import { logMeal, deleteMeal } from "@/actions/diet.actions";
 import { lookupNutrition, type NutritionResult } from "@/actions/nutrition.actions";
-import { generateDailyMealPlan } from "@/actions/ai.actions";
 import { useRouter } from "next/navigation";
 
 // Circular progress ring component
@@ -77,7 +76,6 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isAutoPlanning, setIsAutoPlanning] = useState(false);
 
   const todayStr = new Date().toDateString();
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -261,42 +259,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
     setDeletingId(null);
   };
 
-  const handleAutoPlan = async () => {
-    setIsAutoPlanning(true);
-    const remCals = Math.max(TARGET_CALS - eatenCals, 0);
-    const remPro = Math.max(TARGET_PRO - eatenPro, 0);
-    const remCarbs = Math.max(TARGET_CARB - eatenCarb, 0);
-    const remFats = Math.max(TARGET_FAT - eatenFat, 0);
-    
-    if (remCals < 100) {
-      alert("You have almost reached your target. No need for a meal plan.");
-      setIsAutoPlanning(false);
-      return;
-    }
 
-    try {
-      const generatedMeals = await generateDailyMealPlan(remCals, remPro, remCarbs, remFats, user.dietPreference || "Any");
-      if (generatedMeals && generatedMeals.length > 0) {
-        // Bulk log them sequentially to avoid race conditions with sqlite/prisma sometimes
-        for (const meal of generatedMeals) {
-          const formData = new FormData();
-          formData.append("foodName", meal.foodName);
-          formData.append("calories", meal.calories.toString());
-          formData.append("protein", meal.protein.toString());
-          formData.append("carbs", meal.carbs.toString());
-          formData.append("fats", meal.fats.toString());
-          formData.append("fiber", (meal.fiber || 0).toString());
-          formData.append("planned", "true"); // Always plan AI meals
-          formData.append("date", selectedDate.toISOString());
-          await logMeal(formData);
-        }
-        router.refresh();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setIsAutoPlanning(false);
-  };
 
   return (
     <div className="min-h-screen p-4 md:p-8 flex justify-center font-sans tracking-tight">
@@ -404,14 +367,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
             Uses AI + food database • Just type naturally like &quot;2 rotis with dal&quot;
           </p>
           
-          <button
-             onClick={handleAutoPlan}
-             disabled={isAutoPlanning}
-             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-purple-500/20 to-fuchsia-500/20 text-purple-300 font-bold border border-purple-500/30 hover:opacity-80 transition disabled:opacity-50"
-          >
-             {isAutoPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-purple-400" />} 
-             {isAutoPlanning ? "Crafting Plan..." : isFutureDate ? "Auto-Plan This Day" : "Auto-Plan Remaining Macros"}
-          </button>
+
         </motion.div>
 
         {/* ─── Scanner Modal ─── */}
