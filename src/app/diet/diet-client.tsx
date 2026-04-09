@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Loader2, Search, Trash2, Check, Edit3,
-  BrainCircuit, Database, HelpCircle, ScanLine, X
+  BrainCircuit, ScanLine, X
 } from "lucide-react";
 import Link from "next/link";
 import { logMeal, deleteMeal } from "@/actions/diet.actions";
@@ -50,10 +50,8 @@ function MacroRing({
 // Source badge
 function SourceBadge({ source }: { source: string }) {
   const config = {
-    ai: { icon: BrainCircuit, label: "AI Estimated", color: "text-purple-400 bg-purple-400/10" },
-    database: { icon: Database, label: "Verified", color: "text-emerald-400 bg-emerald-400/10" },
-    estimate: { icon: HelpCircle, label: "Rough Estimate", color: "text-yellow-400 bg-yellow-400/10" },
-  }[source] || { icon: HelpCircle, label: "Unknown", color: "text-muted-foreground bg-secondary" };
+    ai: { icon: BrainCircuit, label: "AI Powered", color: "text-purple-400 bg-purple-400/10" },
+  }[source] || { icon: BrainCircuit, label: "AI Powered", color: "text-purple-400 bg-purple-400/10" };
 
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${config.color}`}>
@@ -199,7 +197,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
           carbs: Math.round(prod.nutriments?.carbohydrates_100g || 0),
           fats: Math.round(prod.nutriments?.fat_100g || 0),
           fiber: Math.round(prod.nutriments?.fiber_100g || 0),
-          source: "database",
+          source: "ai",
         };
         setLookupResult(result);
         setEditValues({
@@ -364,7 +362,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5 px-1 mb-4">
-            Uses AI + food database • Just type naturally like &quot;2 rotis with dal&quot;
+            AI-powered nutrition lookup • Just type naturally like &quot;2 rotis with dal&quot;
           </p>
           
 
