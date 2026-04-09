@@ -64,10 +64,10 @@ export async function getExercises(query: string = "", bodyPart: string = "All",
   try {
     const whereClause: any = {};
     if (query) {
-      whereClause.name = { contains: query, mode: "insensitive" };
+      whereClause.name = { contains: query.toLowerCase() };
     }
     if (bodyPart !== "All") {
-      whereClause.bodyPart = { equals: bodyPart, mode: "insensitive" };
+      whereClause.bodyPart = { equals: bodyPart.toLowerCase() };
     }
 
     const exercises = await prisma.cachedExercise.findMany({

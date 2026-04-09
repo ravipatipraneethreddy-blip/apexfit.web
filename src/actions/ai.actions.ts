@@ -104,3 +104,38 @@ export async function generateDailyMealPlan(remainingCals: number, remainingPro:
   }
 }
 
+export async function askCoachQuestion(question: string, contextText: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey === "your-openai-api-key-here") {
+    return { answer: "I'm currently resting. Please provide a valid OpenAI API key to wake me up!" };
+  }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are the ApexFit AI coach. You help the user with fitness, diet, and training advice. Keep responses concise and highly actionable. Reference their current context if given.",
+          },
+          {
+            role: "user",
+            content: `User Context: ${contextText}\n\nQuestion: ${question}`,
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    return { answer: data.choices[0].message.content };
+  } catch (error) {
+    console.error("OpenAI Ask Error:", error);
+    return { answer: "I encountered an error trying to process your question." };
+  }
+}
