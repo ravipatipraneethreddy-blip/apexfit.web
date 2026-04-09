@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/app-shell";
@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "ApexFit | AI Personal Coach",
   description: "Your dynamic AI-powered fitness and nutrition coach.",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#000000",
 };
 
