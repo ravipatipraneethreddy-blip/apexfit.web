@@ -76,7 +76,6 @@ export default function ProgressClient({ user, weightLogs, macroLogs }: { user: 
     if (!weightInput) return;
     setIsLogging(true);
     const formData = new FormData();
-    const formData = new FormData();
     formData.append("weight", weightInput);
     if (photoData) {
       formData.append("photo", photoData);
