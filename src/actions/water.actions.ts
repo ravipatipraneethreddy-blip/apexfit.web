@@ -1,34 +1,61 @@
 "use server";
 
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-// In-memory water tracking (resets on server restart / redeploy)
-// TODO: Add WaterLog table to Prisma schema for persistence
-let waterLog: { id: string; amount: number; time: Date }[] = [];
-let waterNextId = 1;
-
 export async function logWater(amountMl: number) {
-  waterLog.push({
-    id: `water-${waterNextId++}`,
-    amount: amountMl,
-    time: new Date(),
+  const session = await getSession();
+  if (!session) return { error: "Unauthorized" };
+
+  await prisma.waterLog.create({
+    data: {
+      userId: session.userId,
+      amount: amountMl,
+    },
   });
+
   revalidatePath("/");
   return { success: true };
 }
 
 export async function getTodaysWater(): Promise<{ totalMl: number; logs: { id: string; amount: number; time: Date }[] }> {
+  const session = await getSession();
+  if (!session) return { totalMl: 0, logs: [] };
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const todaysLogs = waterLog.filter((l) => new Date(l.time) >= today);
-  const totalMl = todaysLogs.reduce((sum, l) => sum + l.amount, 0);
+  const logs = await prisma.waterLog.findMany({
+    where: {
+      userId: session.userId,
+      loggedAt: { gte: today },
+    },
+    orderBy: { loggedAt: "desc" },
+  });
 
-  return { totalMl, logs: todaysLogs };
+  const totalMl = logs.reduce((sum, l) => sum + l.amount, 0);
+
+  return {
+    totalMl,
+    logs: logs.map((l) => ({ id: l.id, amount: l.amount, time: l.loggedAt })),
+  };
 }
 
 export async function resetWater() {
-  waterLog = [];
+  const session = await getSession();
+  if (!session) return { error: "Unauthorized" };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  await prisma.waterLog.deleteMany({
+    where: {
+      userId: session.userId,
+      loggedAt: { gte: today },
+    },
+  });
+
   revalidatePath("/");
   return { success: true };
 }

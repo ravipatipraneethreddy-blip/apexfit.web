@@ -1,32 +1,94 @@
-const CACHE_NAME = 'apexfit-v1';
+const CACHE_NAME = 'apexfit-v2';
+const STATIC_ASSETS = [
+  '/',
+  '/diet',
+  '/workout',
+  '/profile',
+  '/progress',
+  '/reports',
+  '/bodyfat',
+];
 
+// Install: cache static pages
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        '/',
-        '/diet',
-        '/workout',
-        '/profile',
-        '/progress'
-      ]).catch(err => {
-        console.log('SW install cache fail', err);
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.log('[SW] Cache install failed:', err);
       });
     })
   );
+  self.skipWaiting();
 });
 
+// Activate: clean old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch: network-first for API/pages, cache-first for static assets
 self.addEventListener('fetch', (event) => {
-  // Simple network-first strategy
+  const url = new URL(event.request.url);
+
+  // Skip non-GET and chrome-extension requests
+  if (event.request.method !== 'GET') return;
+  if (url.protocol === 'chrome-extension:') return;
+
+  // Static assets (JS, CSS, fonts, images): cache-first
+  if (
+    url.pathname.match(/\.(js|css|woff2?|ttf|png|jpg|jpeg|svg|ico|webp)$/) ||
+    url.hostname === 'fonts.googleapis.com' ||
+    url.hostname === 'fonts.gstatic.com'
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Pages & API: network-first, fallback to cache
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok && url.origin === self.location.origin) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          // Fallback to cached homepage for navigation requests
+          if (event.request.mode === 'navigate') {
+            return caches.match('/');
+          }
+          return new Response('Offline', { status: 503 });
+        });
+      })
   );
 });
 
 // Handle push notifications
-self.addEventListener('push', function(event) {
+self.addEventListener('push', function (event) {
   if (event.data) {
     const data = event.data.json();
     const options = {
@@ -35,12 +97,29 @@ self.addEventListener('push', function(event) {
       badge: '/icon-192.png',
       vibrate: [100, 50, 100],
       data: {
+        url: data.url || '/',
         dateOfArrival: Date.now(),
-        primaryKey: '2'
-      }
+      },
+      actions: data.actions || [],
     };
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
+    event.waitUntil(self.registration.showNotification(data.title, options));
   }
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(url) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(url);
+      }
+    })
+  );
 });

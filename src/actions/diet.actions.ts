@@ -222,3 +222,124 @@ export async function getWeeklyNutritionSummary(timezone: string = "Asia/Kolkata
     return emptyData;
   }
 }
+
+// ─── Recent Foods (for Quick Add "Recent" tab) ───────────────────
+export async function getRecentFoods(): Promise<{ foodName: string; calories: number; protein: number; carbs: number; fats: number; fiber: number }[]> {
+  try {
+    const user = await getUserProfile();
+    if (!user) return [];
+
+    const meals = await prisma.mealLog.findMany({
+      where: { userId: user.id, planned: false },
+      orderBy: { date: "desc" },
+      take: 30,
+      select: { foodName: true, calories: true, protein: true, carbs: true, fats: true, fiber: true },
+    });
+
+    // Deduplicate by foodName, keep latest
+    const seen = new Set<string>();
+    const unique: typeof meals = [];
+    for (const m of meals) {
+      const key = m.foodName.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(m);
+      }
+      if (unique.length >= 10) break;
+    }
+
+    return unique;
+  } catch {
+    return [];
+  }
+}
+
+// ─── Nutrition Report (for /reports page) ────────────────────────
+export async function getNutritionReport(days: 7 | 30 = 7, timezone: string = "Asia/Kolkata") {
+  try {
+    const user = await getUserProfile();
+    if (!user) return null;
+
+    const startOfToday = getStartOfDayInTimezone(timezone);
+    const startDate = new Date(startOfToday.getTime() - days * 24 * 60 * 60 * 1000);
+
+    const meals = await prisma.mealLog.findMany({
+      where: {
+        userId: user.id,
+        date: { gte: startDate },
+        planned: false,
+      },
+      orderBy: { date: "asc" },
+    });
+
+    // Group by day
+    const dailyMap = new Map<string, { calories: number; protein: number; carbs: number; fats: number; fiber: number; mealCount: number }>();
+    const foodCount = new Map<string, number>();
+
+    for (const meal of meals) {
+      const key = new Date(meal.date).toLocaleDateString("en-CA", { timeZone: timezone });
+      const existing = dailyMap.get(key) || { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, mealCount: 0 };
+      dailyMap.set(key, {
+        calories: existing.calories + meal.calories,
+        protein: existing.protein + meal.protein,
+        carbs: existing.carbs + meal.carbs,
+        fats: existing.fats + meal.fats,
+        fiber: existing.fiber + (meal.fiber || 0),
+        mealCount: existing.mealCount + 1,
+      });
+
+      // Track food frequency
+      const fname = meal.foodName.toLowerCase();
+      foodCount.set(fname, (foodCount.get(fname) || 0) + 1);
+    }
+
+    // Build daily array
+    const dailyData = Array.from({ length: days }, (_, i) => {
+      const date = new Date(startOfToday.getTime() - (days - 1 - i) * 24 * 60 * 60 * 1000);
+      const key = date.toLocaleDateString("en-CA", { timeZone: timezone });
+      const data = dailyMap.get(key);
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      return {
+        date: key,
+        day: dayNames[new Date(key + "T12:00:00").getDay()],
+        shortDate: `${new Date(key + "T12:00:00").getDate()}/${new Date(key + "T12:00:00").getMonth() + 1}`,
+        calories: data?.calories || 0,
+        protein: Math.round(data?.protein || 0),
+        carbs: Math.round(data?.carbs || 0),
+        fats: Math.round(data?.fats || 0),
+        fiber: Math.round(data?.fiber || 0),
+        mealCount: data?.mealCount || 0,
+      };
+    });
+
+    // Aggregate stats
+    const activeDays = dailyData.filter((d) => d.calories > 0);
+    const targetCals = user.targetCalories || 2000;
+    const daysOnTarget = activeDays.filter((d) => d.calories >= targetCals * 0.85 && d.calories <= targetCals * 1.15).length;
+
+    // Top foods
+    const topFoods = Array.from(foodCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      dailyData,
+      totalMeals: meals.length,
+      avgCalories: activeDays.length > 0 ? Math.round(activeDays.reduce((s, d) => s + d.calories, 0) / activeDays.length) : 0,
+      avgProtein: activeDays.length > 0 ? Math.round(activeDays.reduce((s, d) => s + d.protein, 0) / activeDays.length) : 0,
+      avgCarbs: activeDays.length > 0 ? Math.round(activeDays.reduce((s, d) => s + d.carbs, 0) / activeDays.length) : 0,
+      avgFats: activeDays.length > 0 ? Math.round(activeDays.reduce((s, d) => s + d.fats, 0) / activeDays.length) : 0,
+      totalProtein: Math.round(meals.reduce((s, m) => s + m.protein, 0)),
+      bestDay: activeDays.length > 0 ? activeDays.reduce((best, d) => d.calories > best.calories ? d : best) : null,
+      worstDay: activeDays.length > 0 ? activeDays.reduce((worst, d) => d.calories < worst.calories ? d : worst) : null,
+      daysOnTarget,
+      activeDays: activeDays.length,
+      topFoods,
+      targetCalories: targetCals,
+    };
+  } catch (err) {
+    console.error("[ApexFit] Nutrition report error:", err);
+    return null;
+  }
+}

@@ -58,6 +58,7 @@ export async function getProgressData() {
     weightLogs: rawWeights.map((w) => ({
       date: new Date(w.date).toLocaleDateString(),
       weight: w.weight,
+      photoUrl: w.photoUrl,
     })),
     macroLogs,
   };
@@ -74,6 +75,8 @@ export async function logWeight(formData: FormData) {
 
   const weightStr = formData.get("weight") as string;
   const weight = parseFloat(weightStr);
+  const photo = formData.get("photo") as string | null;
+
   if (!weight || isNaN(weight) || weight <= 0) {
     return { error: "Invalid weight" };
   }
@@ -88,6 +91,7 @@ export async function logWeight(formData: FormData) {
         data: {
           userId: user.id,
           weight,
+          photoUrl: photo,
           date: new Date(),
         },
       }),

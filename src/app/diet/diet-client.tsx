@@ -65,7 +65,7 @@ function SourceBadge({ source }: { source: string }) {
   );
 }
 
-export default function DietClient({ user, meals }: { user: any; meals: any[] }) {
+export default function DietClient({ user, meals, recentFoods = [] }: { user: any; meals: any[]; recentFoods?: any[] }) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [isLooking, setIsLooking] = useState(false);
@@ -175,10 +175,20 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
     ...customQuickAdds,
   ];
 
-  const quickAddCategories = ["All", "Breakfast", "Lunch", "Protein", "Snacks", "Custom"];
-  const filteredQuickAdds = activeQuickCategory === "All"
-    ? allQuickAddItems
-    : allQuickAddItems.filter((i) => i.category === activeQuickCategory);
+  const recentQuickAdds = (recentFoods || []).map((f) => ({
+    label: f.foodName,
+    emoji: "🕒",
+    category: "Recent",
+  }));
+
+  const quickAddCategories = ["All", "Recent", "Breakfast", "Lunch", "Protein", "Snacks", "Custom"];
+  
+  let filteredQuickAdds = allQuickAddItems;
+  if (activeQuickCategory === "Recent") {
+    filteredQuickAdds = recentQuickAdds;
+  } else if (activeQuickCategory !== "All") {
+    filteredQuickAdds = allQuickAddItems.filter((i) => i.category === activeQuickCategory);
+  }
 
   // Debounced autocomplete
   const handleSearchChange = useCallback((value: string) => {

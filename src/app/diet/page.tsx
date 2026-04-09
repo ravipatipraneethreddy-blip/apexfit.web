@@ -1,5 +1,5 @@
 import { getUserProfile } from "@/actions/user.actions";
-import { getWeeklyMeals } from "@/actions/diet.actions";
+import { getWeeklyMeals, getRecentFoods } from "@/actions/diet.actions";
 import { getUserTimezone } from "@/lib/timezone";
 import DietClient from "./diet-client";
 
@@ -12,7 +12,10 @@ export default async function DietPage() {
   }
 
   const timezone = await getUserTimezone();
-  const meals = await getWeeklyMeals(timezone);
+  const [meals, recentFoods] = await Promise.all([
+    getWeeklyMeals(timezone),
+    getRecentFoods(),
+  ]);
 
-  return <DietClient user={user} meals={meals} />;
+  return <DietClient user={user} meals={meals} recentFoods={recentFoods} />;
 }
