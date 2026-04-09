@@ -1,5 +1,6 @@
 import { getUserProfile } from "@/actions/user.actions";
 import { getWeeklyMeals } from "@/actions/diet.actions";
+import { getUserTimezone } from "@/lib/timezone";
 import DietClient from "./diet-client";
 
 import { redirect } from "next/navigation";
@@ -9,7 +10,9 @@ export default async function DietPage() {
   if (!user) {
     redirect("/onboarding");
   }
-  const meals = await getWeeklyMeals();
+
+  const timezone = await getUserTimezone();
+  const meals = await getWeeklyMeals(timezone);
 
   return <DietClient user={user} meals={meals} />;
 }

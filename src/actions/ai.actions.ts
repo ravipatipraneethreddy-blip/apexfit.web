@@ -4,7 +4,7 @@ import { getUserProfile } from "./user.actions";
 import { getTodaysMeals } from "./diet.actions";
 import { getRecentWorkouts } from "./workout.actions";
 
-export async function getCoachAnalysis() {
+export async function getCoachAnalysis(timezone: string = "Asia/Kolkata") {
   const defaultRes = { adherence: "Pending", insight: "Please complete the onboarding to get personalized AI coaching.", recommendation: "Log some meals!" };
   const user = await getUserProfile();
   if (!user) return defaultRes;
@@ -12,7 +12,7 @@ export async function getCoachAnalysis() {
   const apiKey = process.env.OPENAI_API_KEY;
   const useMock = !apiKey || apiKey === "your-openai-api-key-here";
 
-  const meals = await getTodaysMeals();
+  const meals = await getTodaysMeals(timezone);
   const workouts = await getRecentWorkouts();
 
   const totalCals = meals.reduce((acc: number, meal: any) => acc + meal.calories, 0);

@@ -1,73 +1,440 @@
 "use server";
 
-// Local food database — ALL values are per 100g for consistency
-const FOOD_DB: Record<string, {
-  cal: number; pro: number; carb: number; fat: number; fib: number;
-  defaultServing: number; // default grams if no unit given
-  servingLabel: string;   // human label for default serving
-}> = {
-  // Grains & Staples
-  "rice":            { cal: 130, pro: 2.7, carb: 28, fat: 0.3, fib: 0.4, defaultServing: 150, servingLabel: "1 cup cooked (150g)" },
-  "white rice":      { cal: 130, pro: 2.7, carb: 28, fat: 0.3, fib: 0.4, defaultServing: 150, servingLabel: "1 cup cooked (150g)" },
-  "brown rice":      { cal: 112, pro: 2.6, carb: 24, fat: 0.9, fib: 1.8, defaultServing: 150, servingLabel: "1 cup cooked (150g)" },
-  "oats":            { cal: 389, pro: 17, carb: 66, fat: 7, fib: 11, defaultServing: 40, servingLabel: "1/2 cup dry (40g)" },
-  "pasta":           { cal: 131, pro: 5, carb: 25, fat: 1.1, fib: 1.8, defaultServing: 180, servingLabel: "1 cup cooked (180g)" },
-  "bread":           { cal: 265, pro: 9, carb: 49, fat: 3.2, fib: 2.7, defaultServing: 30, servingLabel: "1 slice (30g)" },
+// ═══════════════════════════════════════════════════════════════════
+// ApexFit Nutrition Engine v2 — Production-grade calorie calculator
+// All values: per 100g | Using IFCT/NIN/USDA verified data
+// ═══════════════════════════════════════════════════════════════════
 
-  // Indian Flatbreads (per piece → converted to per 100g)
-  "chapati":         { cal: 297, pro: 8.6, carb: 51, fat: 8.6, fib: 5.7, defaultServing: 35, servingLabel: "1 piece (35g)" },
-  "roti":            { cal: 297, pro: 8.6, carb: 51, fat: 8.6, fib: 5.7, defaultServing: 35, servingLabel: "1 piece (35g)" },
-  "paratha":         { cal: 326, pro: 7.3, carb: 45, fat: 13, fib: 3.6, defaultServing: 55, servingLabel: "1 piece (55g)" },
-  "naan":            { cal: 291, pro: 10, carb: 50, fat: 5.5, fib: 2.2, defaultServing: 90, servingLabel: "1 piece (90g)" },
-  "dosa":            { cal: 171, pro: 4.3, carb: 26, fat: 5.7, fib: 1.4, defaultServing: 70, servingLabel: "1 piece (70g)" },
-  "idli":            { cal: 130, pro: 5, carb: 27, fat: 0.7, fib: 1.7, defaultServing: 30, servingLabel: "1 piece (30g)" },
-  "poha":            { cal: 130, pro: 2.9, carb: 25, fat: 2.9, fib: 0.7, defaultServing: 140, servingLabel: "1 cup (140g)" },
-  "upma":            { cal: 118, pro: 3.5, carb: 18, fat: 3.5, fib: 1.2, defaultServing: 170, servingLabel: "1 cup (170g)" },
-
-  // Proteins
-  "chicken breast":  { cal: 165, pro: 31, carb: 0, fat: 3.6, fib: 0, defaultServing: 150, servingLabel: "1 piece (150g)" },
-  "chicken":         { cal: 165, pro: 31, carb: 0, fat: 3.6, fib: 0, defaultServing: 150, servingLabel: "1 piece (150g)" },
-  "egg":             { cal: 155, pro: 13, carb: 1.1, fat: 11, fib: 0, defaultServing: 50, servingLabel: "1 large (50g)" },
-  "eggs":            { cal: 155, pro: 13, carb: 1.1, fat: 11, fib: 0, defaultServing: 50, servingLabel: "1 large (50g)" },
-  "paneer":          { cal: 265, pro: 18, carb: 1.2, fat: 21, fib: 0, defaultServing: 100, servingLabel: "100g" },
-  "tofu":            { cal: 76, pro: 8, carb: 1.9, fat: 4.8, fib: 0.3, defaultServing: 100, servingLabel: "100g" },
-  "salmon":          { cal: 208, pro: 20, carb: 0, fat: 13, fib: 0, defaultServing: 150, servingLabel: "1 fillet (150g)" },
-  "whey protein":    { cal: 400, pro: 80, carb: 10, fat: 3.3, fib: 0, defaultServing: 30, servingLabel: "1 scoop (30g)" },
-  "protein shake":   { cal: 400, pro: 80, carb: 10, fat: 3.3, fib: 0, defaultServing: 30, servingLabel: "1 scoop (30g)" },
-
-  // Indian Curries & Dishes (per 100g cooked)
-  "dal":             { cal: 75, pro: 5, carb: 12.5, fat: 0.4, fib: 3.3, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "toor dal":        { cal: 75, pro: 5, carb: 12.5, fat: 0.4, fib: 3.3, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "sambar":          { cal: 54, pro: 2.5, carb: 7.5, fat: 1.3, fib: 1.7, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "samber":          { cal: 54, pro: 2.5, carb: 7.5, fat: 1.3, fib: 1.7, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "chicken biryani": { cal: 163, pro: 9.3, carb: 18.3, fat: 5.3, fib: 0.7, defaultServing: 300, servingLabel: "1 plate (300g)" },
-  "chicken curry":   { cal: 133, pro: 10, carb: 5, fat: 8.3, fib: 0.8, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "mutton curry":    { cal: 175, pro: 12, carb: 4.2, fat: 12.5, fib: 0.4, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "fish curry":      { cal: 104, pro: 9.2, carb: 3.3, fat: 5.8, fib: 0.4, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "palak paneer":    { cal: 117, pro: 6.7, carb: 4.2, fat: 8.3, fib: 1.3, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "rajma":           { cal: 88, pro: 5.4, carb: 14.6, fat: 0.8, fib: 3.3, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "chole":           { cal: 100, pro: 5, carb: 15.8, fat: 2.1, fib: 4.2, defaultServing: 240, servingLabel: "1 cup (240g)" },
-  "aloo gobi":       { cal: 67, pro: 1.7, carb: 9.2, fat: 2.9, fib: 1.7, defaultServing: 240, servingLabel: "1 cup (240g)" },
-
-  // Dairy
-  "milk":            { cal: 62, pro: 3.3, carb: 5, fat: 3.3, fib: 0, defaultServing: 240, servingLabel: "1 cup (240ml)" },
-  "curd":            { cal: 61, pro: 3.5, carb: 4.7, fat: 3.3, fib: 0, defaultServing: 170, servingLabel: "1 cup (170g)" },
-  "yogurt":          { cal: 61, pro: 3.5, carb: 4.7, fat: 3.3, fib: 0, defaultServing: 170, servingLabel: "1 cup (170g)" },
-  "greek yogurt":    { cal: 59, pro: 10, carb: 3.6, fat: 0.4, fib: 0, defaultServing: 200, servingLabel: "1 cup (200g)" },
-
-  // Fruits & Snacks
-  "banana":          { cal: 89, pro: 1.1, carb: 23, fat: 0.3, fib: 2.6, defaultServing: 118, servingLabel: "1 medium (118g)" },
-  "apple":           { cal: 52, pro: 0.3, carb: 14, fat: 0.2, fib: 2.4, defaultServing: 182, servingLabel: "1 medium (182g)" },
-  "almonds":         { cal: 579, pro: 21, carb: 22, fat: 50, fib: 12.5, defaultServing: 28, servingLabel: "1 handful (28g)" },
-  "peanut butter":   { cal: 588, pro: 25, carb: 20, fat: 50, fib: 6, defaultServing: 32, servingLabel: "2 tbsp (32g)" },
-  "avocado":         { cal: 160, pro: 2, carb: 8.5, fat: 15, fib: 6.7, defaultServing: 150, servingLabel: "1 whole (150g)" },
-  "sweet potato":    { cal: 86, pro: 1.6, carb: 20, fat: 0.1, fib: 3, defaultServing: 130, servingLabel: "1 medium (130g)" },
-
-  // Fast Food
-  "pizza":           { cal: 266, pro: 11, carb: 33, fat: 10, fib: 2.3, defaultServing: 107, servingLabel: "1 slice (107g)" },
-  "burger":          { cal: 254, pro: 14, carb: 21, fat: 12, fib: 0.7, defaultServing: 140, servingLabel: "1 piece (140g)" },
+// Data model for each food item
+type FoodEntry = {
+  cal: number;           // kcal per 100g
+  pro: number;           // protein per 100g
+  carb: number;          // carbs per 100g
+  fat: number;           // fat per 100g
+  fib: number;           // fiber per 100g
+  defaultUnit: "g" | "piece" | "ml" | "cup" | "tbsp" | "scoop";
+  weightPerUnit: number; // grams per 1 unit (for piece-based foods)
+  servingLabel: string;  // human-readable serving description
+  aliases?: string[];    // alternate names for fuzzy matching
 };
 
+// ─── FOOD DATABASE ─── All values per 100g ───────────────────────
+const FOOD_DB: Record<string, FoodEntry> = {
+
+  // ══ Grains & Staples ══
+  "rice": {
+    cal: 130, pro: 2.7, carb: 28, fat: 0.3, fib: 0.4,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup cooked (150g)",
+    aliases: ["white rice", "cooked rice", "steamed rice", "plain rice"],
+  },
+  "brown rice": {
+    cal: 112, pro: 2.6, carb: 24, fat: 0.9, fib: 1.8,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup cooked (150g)",
+  },
+  "raw rice": {
+    cal: 360, pro: 6.8, carb: 79, fat: 0.5, fib: 0.2,
+    defaultUnit: "g", weightPerUnit: 100, servingLabel: "100g dry",
+    aliases: ["uncooked rice", "dry rice"],
+  },
+  "oats": {
+    cal: 389, pro: 17, carb: 66, fat: 7, fib: 11,
+    defaultUnit: "cup", weightPerUnit: 40, servingLabel: "1/2 cup dry (40g)",
+    aliases: ["oatmeal", "rolled oats"],
+  },
+  "pasta": {
+    cal: 131, pro: 5, carb: 25, fat: 1.1, fib: 1.8,
+    defaultUnit: "cup", weightPerUnit: 180, servingLabel: "1 cup cooked (180g)",
+    aliases: ["spaghetti", "macaroni", "penne", "noodles"],
+  },
+  "bread": {
+    cal: 265, pro: 9, carb: 49, fat: 3.2, fib: 2.7,
+    defaultUnit: "piece", weightPerUnit: 30, servingLabel: "1 slice (30g)",
+    aliases: ["bread slice", "toast", "white bread", "brown bread"],
+  },
+
+  // ══ Indian Flatbreads ══ (IFCT/NIN verified)
+  "chapati": {
+    cal: 240, pro: 8.7, carb: 50, fat: 1.0, fib: 1.9,
+    defaultUnit: "piece", weightPerUnit: 35, servingLabel: "1 piece (35g)",
+    aliases: ["chapathi", "phulka"],
+  },
+  "roti": {
+    cal: 240, pro: 8.7, carb: 50, fat: 1.0, fib: 1.9,
+    defaultUnit: "piece", weightPerUnit: 35, servingLabel: "1 piece (35g)",
+    aliases: ["rotis", "wheat roti"],
+  },
+  "paratha": {
+    cal: 326, pro: 7.3, carb: 45, fat: 13, fib: 3.6,
+    defaultUnit: "piece", weightPerUnit: 60, servingLabel: "1 piece (60g)",
+    aliases: ["parata", "parantha", "aloo paratha"],
+  },
+  "naan": {
+    cal: 291, pro: 10, carb: 50, fat: 5.5, fib: 2.2,
+    defaultUnit: "piece", weightPerUnit: 90, servingLabel: "1 piece (90g)",
+    aliases: ["naan bread", "butter naan", "garlic naan"],
+  },
+  "puri": {
+    cal: 324, pro: 7.5, carb: 45, fat: 13, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 25, servingLabel: "1 piece (25g)",
+    aliases: ["poori", "puris", "pooris"],
+  },
+
+  // ══ South Indian (IFCT verified weights) ══
+  "idli": {
+    cal: 130, pro: 4.1, carb: 25.8, fat: 0.5, fib: 1.0,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["idlis", "idly", "idlies", "idle", "idles", "steamed idli"],
+  },
+  "dosa": {
+    cal: 171, pro: 4.3, carb: 26, fat: 5.7, fib: 1.4,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["dosas", "plain dosa", "sada dosa"],
+  },
+  "masala dosa": {
+    cal: 165, pro: 4.0, carb: 24, fat: 5.5, fib: 1.8,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 piece (150g)",
+    aliases: ["masaladosa"],
+  },
+  "vada": {
+    cal: 290, pro: 12, carb: 26, fat: 16, fib: 3.0,
+    defaultUnit: "piece", weightPerUnit: 45, servingLabel: "1 piece (45g)",
+    aliases: ["vadas", "medu vada", "vadai", "urad vada"],
+  },
+  "poha": {
+    cal: 130, pro: 2.9, carb: 25, fat: 2.9, fib: 0.7,
+    defaultUnit: "cup", weightPerUnit: 140, servingLabel: "1 cup (140g)",
+    aliases: ["flattened rice", "aval"],
+  },
+  "upma": {
+    cal: 118, pro: 3.5, carb: 18, fat: 3.5, fib: 1.2,
+    defaultUnit: "cup", weightPerUnit: 170, servingLabel: "1 cup (170g)",
+    aliases: ["uppma", "rava upma"],
+  },
+  "pongal": {
+    cal: 120, pro: 3.5, carb: 18, fat: 3.8, fib: 1.0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+    aliases: ["ven pongal", "khara pongal"],
+  },
+  "uttapam": {
+    cal: 160, pro: 5, carb: 24, fat: 5, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 120, servingLabel: "1 piece (120g)",
+    aliases: ["uthappam", "utappam"],
+  },
+  "pesarattu": {
+    cal: 150, pro: 7, carb: 20, fat: 4.5, fib: 2.5,
+    defaultUnit: "piece", weightPerUnit: 90, servingLabel: "1 piece (90g)",
+  },
+
+  // ══ Proteins ══
+  "chicken breast": {
+    cal: 165, pro: 31, carb: 0, fat: 3.6, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 piece cooked (150g)",
+    aliases: ["grilled chicken", "chicken breast cooked"],
+  },
+  "chicken": {
+    cal: 239, pro: 27, carb: 0, fat: 14, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 serving (150g)",
+    aliases: ["chicken thigh", "chicken leg", "cooked chicken"],
+  },
+  "raw chicken": {
+    cal: 120, pro: 22, carb: 0, fat: 3.1, fib: 0,
+    defaultUnit: "g", weightPerUnit: 100, servingLabel: "100g raw",
+    aliases: ["uncooked chicken"],
+  },
+  "egg": {
+    cal: 155, pro: 13, carb: 1.1, fat: 11, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 50, servingLabel: "1 large (50g)",
+    aliases: ["eggs", "boiled egg", "boiled eggs", "egg boiled", "fried egg", "scrambled egg", "omelette", "omelet"],
+  },
+  "egg white": {
+    cal: 52, pro: 11, carb: 0.7, fat: 0.2, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 33, servingLabel: "1 large white (33g)",
+    aliases: ["egg whites"],
+  },
+  "paneer": {
+    cal: 265, pro: 18, carb: 1.2, fat: 21, fib: 0,
+    defaultUnit: "g", weightPerUnit: 100, servingLabel: "100g",
+    aliases: ["cottage cheese", "panir"],
+  },
+  "tofu": {
+    cal: 76, pro: 8, carb: 1.9, fat: 4.8, fib: 0.3,
+    defaultUnit: "g", weightPerUnit: 100, servingLabel: "100g",
+    aliases: ["soy paneer"],
+  },
+  "salmon": {
+    cal: 208, pro: 20, carb: 0, fat: 13, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 fillet (150g)",
+    aliases: ["salmon fillet"],
+  },
+  "fish": {
+    cal: 120, pro: 20, carb: 0, fat: 4, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 120, servingLabel: "1 piece (120g)",
+    aliases: ["fried fish", "grilled fish", "fish fry"],
+  },
+  "prawns": {
+    cal: 85, pro: 20, carb: 0, fat: 0.5, fib: 0,
+    defaultUnit: "g", weightPerUnit: 100, servingLabel: "100g",
+    aliases: ["shrimp", "shrimps"],
+  },
+  "whey protein": {
+    cal: 400, pro: 80, carb: 10, fat: 3.3, fib: 0,
+    defaultUnit: "scoop", weightPerUnit: 30, servingLabel: "1 scoop (30g)",
+    aliases: ["protein shake", "protein powder", "whey"],
+  },
+
+  // ══ Indian Curries & Dishes (per 100g cooked, IFCT) ══
+  "dal": {
+    cal: 75, pro: 5, carb: 12.5, fat: 0.4, fib: 3.3,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["toor dal", "yellow dal", "arhar dal", "moong dal", "daal"],
+  },
+  "sambar": {
+    cal: 54, pro: 2.5, carb: 7.5, fat: 1.3, fib: 1.7,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["samber", "sambhar"],
+  },
+  "rasam": {
+    cal: 30, pro: 1.5, carb: 5, fat: 0.5, fib: 0.5,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["rasam soup"],
+  },
+  "chicken biryani": {
+    cal: 163, pro: 9.3, carb: 18.3, fat: 5.3, fib: 0.7,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+    aliases: ["biryani", "biriyani", "briyani", "dum biryani"],
+  },
+  "veg biryani": {
+    cal: 140, pro: 3.5, carb: 22, fat: 4, fib: 1.5,
+    defaultUnit: "piece", weightPerUnit: 300, servingLabel: "1 plate (300g)",
+    aliases: ["vegetable biryani"],
+  },
+  "chicken curry": {
+    cal: 133, pro: 10, carb: 5, fat: 8.3, fib: 0.8,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["chicken gravy", "chicken masala"],
+  },
+  "mutton curry": {
+    cal: 175, pro: 12, carb: 4.2, fat: 12.5, fib: 0.4,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["mutton gravy", "goat curry", "lamb curry"],
+  },
+  "fish curry": {
+    cal: 104, pro: 9.2, carb: 3.3, fat: 5.8, fib: 0.4,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+  },
+  "palak paneer": {
+    cal: 117, pro: 6.7, carb: 4.2, fat: 8.3, fib: 1.3,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["spinach paneer"],
+  },
+  "rajma": {
+    cal: 88, pro: 5.4, carb: 14.6, fat: 0.8, fib: 3.3,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["rajma masala", "kidney beans curry", "kidney beans"],
+  },
+  "chole": {
+    cal: 100, pro: 5, carb: 15.8, fat: 2.1, fib: 4.2,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["chana masala", "chickpea curry", "chhole", "chole masala"],
+  },
+  "aloo gobi": {
+    cal: 67, pro: 1.7, carb: 9.2, fat: 2.9, fib: 1.7,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240g)",
+    aliases: ["aloo gobhi", "potato cauliflower"],
+  },
+  "aloo fry": {
+    cal: 150, pro: 2, carb: 20, fat: 7, fib: 2.0,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 serving (150g)",
+    aliases: ["fried potatoes", "aloo bhaji", "potato fry"],
+  },
+
+  // ══ Dairy ══
+  "milk": {
+    cal: 62, pro: 3.3, carb: 5, fat: 3.3, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 240, servingLabel: "1 cup (240ml)",
+    aliases: ["whole milk", "full cream milk"],
+  },
+  "skim milk": {
+    cal: 34, pro: 3.4, carb: 5, fat: 0.1, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 240, servingLabel: "1 cup (240ml)",
+    aliases: ["fat free milk", "nonfat milk", "toned milk"],
+  },
+  "curd": {
+    cal: 61, pro: 3.5, carb: 4.7, fat: 3.3, fib: 0,
+    defaultUnit: "cup", weightPerUnit: 170, servingLabel: "1 cup (170g)",
+    aliases: ["dahi", "yogurt", "plain yogurt"],
+  },
+  "greek yogurt": {
+    cal: 59, pro: 10, carb: 3.6, fat: 0.4, fib: 0,
+    defaultUnit: "cup", weightPerUnit: 200, servingLabel: "1 cup (200g)",
+  },
+  "buttermilk": {
+    cal: 31, pro: 2.5, carb: 3.5, fat: 0.7, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 240, servingLabel: "1 glass (240ml)",
+    aliases: ["chaas", "majjiga", "chaach", "mor"],
+  },
+  "lassi": {
+    cal: 72, pro: 2.5, carb: 12, fat: 1.5, fib: 0,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["sweet lassi", "mango lassi"],
+  },
+  "ghee": {
+    cal: 900, pro: 0, carb: 0, fat: 100, fib: 0,
+    defaultUnit: "tbsp", weightPerUnit: 14, servingLabel: "1 tbsp (14g)",
+    aliases: ["clarified butter", "desi ghee"],
+  },
+  "butter": {
+    cal: 717, pro: 0.9, carb: 0.1, fat: 81, fib: 0,
+    defaultUnit: "tbsp", weightPerUnit: 14, servingLabel: "1 tbsp (14g)",
+    aliases: ["amul butter"],
+  },
+  "cheese": {
+    cal: 402, pro: 25, carb: 1.3, fat: 33, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 20, servingLabel: "1 slice (20g)",
+    aliases: ["cheese slice", "cheddar"],
+  },
+
+  // ══ Cooking Oils & Fats ══
+  "oil": {
+    cal: 884, pro: 0, carb: 0, fat: 100, fib: 0,
+    defaultUnit: "tbsp", weightPerUnit: 15, servingLabel: "1 tbsp (15g)",
+    aliases: ["cooking oil", "vegetable oil", "sunflower oil", "olive oil", "coconut oil", "mustard oil", "groundnut oil", "sesame oil", "canola oil"],
+  },
+
+  // ══ Fruits ══
+  "banana": {
+    cal: 89, pro: 1.1, carb: 23, fat: 0.3, fib: 2.6,
+    defaultUnit: "piece", weightPerUnit: 118, servingLabel: "1 medium (118g)",
+    aliases: ["bananas"],
+  },
+  "apple": {
+    cal: 52, pro: 0.3, carb: 14, fat: 0.2, fib: 2.4,
+    defaultUnit: "piece", weightPerUnit: 182, servingLabel: "1 medium (182g)",
+    aliases: ["apples"],
+  },
+  "mango": {
+    cal: 60, pro: 0.8, carb: 15, fat: 0.4, fib: 1.6,
+    defaultUnit: "piece", weightPerUnit: 200, servingLabel: "1 medium (200g)",
+    aliases: ["mangoes", "mangos"],
+  },
+  "papaya": {
+    cal: 43, pro: 0.5, carb: 11, fat: 0.3, fib: 1.7,
+    defaultUnit: "cup", weightPerUnit: 145, servingLabel: "1 cup (145g)",
+  },
+  "orange": {
+    cal: 47, pro: 0.9, carb: 12, fat: 0.1, fib: 2.4,
+    defaultUnit: "piece", weightPerUnit: 130, servingLabel: "1 medium (130g)",
+    aliases: ["oranges"],
+  },
+  "watermelon": {
+    cal: 30, pro: 0.6, carb: 8, fat: 0.2, fib: 0.4,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup (150g)",
+  },
+
+  // ══ Nuts & Seeds ══
+  "almonds": {
+    cal: 579, pro: 21, carb: 22, fat: 50, fib: 12.5,
+    defaultUnit: "piece", weightPerUnit: 1.2, servingLabel: "1 almond (1.2g)",
+    aliases: ["almond", "badam"],
+  },
+  "cashew": {
+    cal: 553, pro: 18, carb: 30, fat: 44, fib: 3.3,
+    defaultUnit: "piece", weightPerUnit: 1.5, servingLabel: "1 cashew (1.5g)",
+    aliases: ["cashews", "kaju", "cashew nuts"],
+  },
+  "peanuts": {
+    cal: 567, pro: 26, carb: 16, fat: 49, fib: 8.5,
+    defaultUnit: "g", weightPerUnit: 30, servingLabel: "1 handful (30g)",
+    aliases: ["groundnuts", "moongphali", "peanut"],
+  },
+  "peanut butter": {
+    cal: 588, pro: 25, carb: 20, fat: 50, fib: 6,
+    defaultUnit: "tbsp", weightPerUnit: 32, servingLabel: "2 tbsp (32g)",
+  },
+  "walnuts": {
+    cal: 654, pro: 15, carb: 14, fat: 65, fib: 6.7,
+    defaultUnit: "piece", weightPerUnit: 4, servingLabel: "1 walnut half (4g)",
+    aliases: ["walnut", "akhrot"],
+  },
+
+  // ══ Sweets & Snacks ══
+  "avocado": {
+    cal: 160, pro: 2, carb: 8.5, fat: 15, fib: 6.7,
+    defaultUnit: "piece", weightPerUnit: 150, servingLabel: "1 whole (150g)",
+  },
+  "sweet potato": {
+    cal: 86, pro: 1.6, carb: 20, fat: 0.1, fib: 3,
+    defaultUnit: "piece", weightPerUnit: 130, servingLabel: "1 medium (130g)",
+    aliases: ["shakarkandi"],
+  },
+  "samosa": {
+    cal: 262, pro: 5.5, carb: 28, fat: 14, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 80, servingLabel: "1 piece (80g)",
+    aliases: ["samosas"],
+  },
+  "jalebi": {
+    cal: 380, pro: 2, carb: 60, fat: 15, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 30, servingLabel: "1 piece (30g)",
+    aliases: ["jalebis"],
+  },
+  "gulab jamun": {
+    cal: 325, pro: 5, carb: 50, fat: 12, fib: 0,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["gulab jamuns", "gulabjamun"],
+  },
+  "laddu": {
+    cal: 450, pro: 8, carb: 55, fat: 22, fib: 2.0,
+    defaultUnit: "piece", weightPerUnit: 40, servingLabel: "1 piece (40g)",
+    aliases: ["ladoo", "laddoo", "besan laddu", "motichoor laddu"],
+  },
+
+  // ══ Fast Food ══
+  "pizza": {
+    cal: 266, pro: 11, carb: 33, fat: 10, fib: 2.3,
+    defaultUnit: "piece", weightPerUnit: 107, servingLabel: "1 slice (107g)",
+    aliases: ["pizza slice"],
+  },
+  "burger": {
+    cal: 254, pro: 14, carb: 21, fat: 12, fib: 0.7,
+    defaultUnit: "piece", weightPerUnit: 140, servingLabel: "1 piece (140g)",
+    aliases: ["hamburger", "veg burger"],
+  },
+
+  // ══ Beverages ══
+  "tea": {
+    cal: 30, pro: 0.5, carb: 5, fat: 0.8, fib: 0,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup with milk (150ml)",
+    aliases: ["chai", "masala tea", "masala chai", "milk tea"],
+  },
+  "coffee": {
+    cal: 35, pro: 0.8, carb: 4, fat: 1.5, fib: 0,
+    defaultUnit: "cup", weightPerUnit: 150, servingLabel: "1 cup with milk (150ml)",
+    aliases: ["filter coffee", "kaapi", "milk coffee"],
+  },
+  "black coffee": {
+    cal: 2, pro: 0.3, carb: 0, fat: 0, fib: 0,
+    defaultUnit: "cup", weightPerUnit: 240, servingLabel: "1 cup (240ml)",
+    aliases: ["americano", "espresso"],
+  },
+  "coconut water": {
+    cal: 19, pro: 0.7, carb: 3.7, fat: 0.2, fib: 1.1,
+    defaultUnit: "ml", weightPerUnit: 250, servingLabel: "1 glass (250ml)",
+    aliases: ["tender coconut", "nariyal pani"],
+  },
+};
+
+// ─── Build alias lookup map for O(1) matching ────────────────────
+const ALIAS_MAP = new Map<string, string>();
+for (const [key, entry] of Object.entries(FOOD_DB)) {
+  ALIAS_MAP.set(key, key);
+  if (entry.aliases) {
+    for (const alias of entry.aliases) {
+      ALIAS_MAP.set(alias, key);
+    }
+  }
+}
+
+// ─── Types ───────────────────────────────────────────────────────
 export type NutritionResult = {
   foodName: string;
   quantity: string;
@@ -77,22 +444,23 @@ export type NutritionResult = {
   fats: number;
   fiber: number;
   source: "ai" | "database" | "estimate";
+  debug?: string; // Debug trace for troubleshooting
 };
 
-// Parse input into grams or count
 type ParsedInput = {
-  grams: number | null;   // if user specified grams
-  count: number | null;    // if user specified count (e.g. "2 eggs")
+  grams: number | null;
+  count: number | null;
   foodKey: string;
   originalName: string;
-  isComplex: boolean;      // contains "and", "with", commas
+  isComplex: boolean;
 };
 
+// ─── STEP 1: Parse user input ────────────────────────────────────
 function parseInput(input: string): ParsedInput {
   const raw = input.trim();
   const trimmed = raw.toLowerCase();
 
-  // Complex inputs with "and", "with", commas → route to AI
+  // Complex inputs with "and", "with", commas → route to compound/AI
   if (/\band\b|\bwith\b|,/.test(trimmed)) {
     return { grams: null, count: null, foodKey: trimmed, originalName: raw, isComplex: true };
   }
@@ -104,75 +472,132 @@ function parseInput(input: string): ParsedInput {
   }
 
   // Match "200ml milk"
-  const mlMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:ml)\s+(.+)$/);
+  const mlMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:ml|mls)\s+(.+)$/);
   if (mlMatch) {
     return { grams: parseFloat(mlMatch[1]), count: null, foodKey: mlMatch[2].trim(), originalName: raw, isComplex: false };
   }
 
-  // Match "2 eggs", "3 chapati", "1 plate biryani"
+  // Match "2 tbsp oil", "1 tablespoon ghee"
+  const tbspMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons)\s+(.+)$/);
+  if (tbspMatch) {
+    const tbspCount = parseFloat(tbspMatch[1]);
+    const isTsp = /tsp|teaspoon/.test(tbspMatch[0]);
+    // 1 tsp ≈ 5g, 1 tbsp ≈ 15g
+    return { grams: null, count: tbspCount * (isTsp ? 0.33 : 1), foodKey: tbspMatch[2].trim(), originalName: raw, isComplex: false };
+  }
+
+  // Match "2 cup rice", "1 glass milk"
+  const cupMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:cups?|glass|glasses|bowls?)\s+(.+)$/);
+  if (cupMatch) {
+    return { grams: null, count: parseFloat(cupMatch[1]), foodKey: cupMatch[2].trim(), originalName: raw, isComplex: false };
+  }
+
+  // Match "2 eggs", "3 chapati", "8 idli", "1 plate biryani"
   const countMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
   if (countMatch) {
-    return { grams: null, count: parseFloat(countMatch[1]), foodKey: countMatch[2].trim(), originalName: raw, isComplex: false };
+    // Strip "plate", "piece", "pieces" from food key
+    let foodKey = countMatch[2].trim();
+    foodKey = foodKey.replace(/^(plates?\s+|pieces?\s+|servings?\s+)/i, "");
+    return { grams: null, count: parseFloat(countMatch[1]), foodKey, originalName: raw, isComplex: false };
   }
 
   // "half plate biryani"
   if (trimmed.startsWith("half ")) {
-    return { grams: null, count: 0.5, foodKey: trimmed.replace("half ", "").trim(), originalName: raw, isComplex: false };
+    let foodKey = trimmed.replace("half ", "").trim();
+    foodKey = foodKey.replace(/^(plates?\s+|pieces?\s+|servings?\s+)/i, "");
+    return { grams: null, count: 0.5, foodKey, originalName: raw, isComplex: false };
   }
 
   return { grams: null, count: 1, foodKey: trimmed, originalName: raw, isComplex: false };
 }
 
-function lookupLocal(foodKey: string): { key: string; data: (typeof FOOD_DB)[string] } | null {
-  // Direct match
+// ─── STEP 2: Lookup food in local DB ─────────────────────────────
+function lookupLocal(foodKey: string): { key: string; data: FoodEntry } | null {
+  // 1. Direct match
   if (FOOD_DB[foodKey]) return { key: foodKey, data: FOOD_DB[foodKey] };
 
-  // Strip "plate", "cup", "bowl" prefixes
-  const stripped = foodKey.replace(/^(plate|cup|bowl|serving|piece|pieces)\s+/i, "").trim();
-  if (FOOD_DB[stripped]) return { key: stripped, data: FOOD_DB[stripped] };
+  // 2. Alias match (O(1))
+  const aliasKey = ALIAS_MAP.get(foodKey);
+  if (aliasKey && FOOD_DB[aliasKey]) return { key: aliasKey, data: FOOD_DB[aliasKey] };
 
-  // Partial match (food key contains DB key or vice versa)
+  // 3. Pluralization: strip trailing 's', 'es'
+  const depluralized = foodKey.replace(/(ies)$/, "y").replace(/(es|s)$/, "");
+  if (FOOD_DB[depluralized]) return { key: depluralized, data: FOOD_DB[depluralized] };
+  const depluralAlias = ALIAS_MAP.get(depluralized);
+  if (depluralAlias && FOOD_DB[depluralAlias]) return { key: depluralAlias, data: FOOD_DB[depluralAlias] };
+
+  // 4. Strip common prefixes: "plate", "cup", "bowl", "piece"
+  const stripped = foodKey.replace(/^(plates?\s+|cups?\s+|bowls?\s+|servings?\s+|pieces?\s+)/i, "").trim();
+  if (stripped !== foodKey) {
+    const result = lookupLocal(stripped);
+    if (result) return result;
+  }
+
+  // 5. Partial match (last resort — for multi-word keys)
   for (const [key, val] of Object.entries(FOOD_DB)) {
     if (foodKey.includes(key) || key.includes(foodKey)) {
       return { key, data: val };
     }
   }
+
   return null;
 }
 
+// ─── STEP 3: Calculate macros (the core formula) ─────────────────
 function calcFromDb(
-  data: (typeof FOOD_DB)[string],
+  data: FoodEntry,
   grams: number | null,
   count: number | null
-): { calories: number; protein: number; carbs: number; fats: number; fiber: number; quantity: string } {
-  let actualGrams: number;
+): { calories: number; protein: number; carbs: number; fats: number; fiber: number; quantity: string; debug: string } {
+
+  let totalGrams: number;
   let quantityLabel: string;
+  let debugTrace: string;
 
   if (grams !== null) {
-    // User specified grams directly → use as-is
-    actualGrams = grams;
+    // User specified grams/ml directly
+    totalGrams = grams;
     quantityLabel = `${grams}g`;
+    debugTrace = `[GRAMS] input=${grams}g`;
   } else if (count !== null) {
-    // User specified count → multiply default serving
-    actualGrams = data.defaultServing * count;
+    // User specified count → multiply by weightPerUnit
+    if (!data.weightPerUnit || data.weightPerUnit <= 0) {
+      console.error(`[NutritionEngine] weightPerUnit missing for food with defaultUnit=${data.defaultUnit}`);
+      totalGrams = 100 * count;
+      debugTrace = `[ERROR] weightPerUnit missing, assumed 100g × ${count}`;
+    } else {
+      totalGrams = data.weightPerUnit * count;
+      debugTrace = `[COUNT] ${count} × ${data.weightPerUnit}g/unit = ${totalGrams}g`;
+    }
     quantityLabel = `${count} × ${data.servingLabel}`;
   } else {
-    actualGrams = data.defaultServing;
+    totalGrams = data.weightPerUnit || 100;
     quantityLabel = data.servingLabel;
+    debugTrace = `[DEFAULT] 1 serving = ${totalGrams}g`;
   }
 
-  const mult = actualGrams / 100;
+  // Core formula: (totalGrams / 100) × per_100g_value
+  const multiplier = totalGrams / 100;
 
-  return {
-    calories: Math.round(data.cal * mult),
-    protein: Math.round(data.pro * mult),
-    carbs: Math.round(data.carb * mult),
-    fats: Math.round(data.fat * mult),
-    fiber: Math.round(data.fib * mult),
+  const result = {
+    calories: Math.round(data.cal * multiplier),
+    protein: Math.round(data.pro * multiplier * 10) / 10,
+    carbs: Math.round(data.carb * multiplier * 10) / 10,
+    fats: Math.round(data.fat * multiplier * 10) / 10,
+    fiber: Math.round(data.fib * multiplier * 10) / 10,
     quantity: quantityLabel,
+    debug: `${debugTrace} | multiplier=${multiplier.toFixed(2)} | cal=${data.cal}/100g → ${Math.round(data.cal * multiplier)}kcal`,
   };
+
+  // Validation: sanity check
+  if (result.calories < 0 || result.calories > 5000) {
+    console.warn(`[NutritionEngine] Suspicious calorie value: ${result.calories} for ${totalGrams}g. ${debugTrace}`);
+  }
+
+  return result;
 }
 
+// ─── AI Lookup (unchanged) ───────────────────────────────────────
 async function lookupViaAI(input: string, originalName: string): Promise<NutritionResult | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === "your-openai-api-key-here") return null;
@@ -190,7 +615,7 @@ async function lookupViaAI(input: string, originalName: string): Promise<Nutriti
         messages: [
           {
             role: "system",
-            content: `You are a nutrition database. Given a food item and quantity, return accurate nutritional estimates in JSON: {"calories": number, "protein": number, "carbs": number, "fats": number, "fiber": number, "quantity": "description"}. All macro values in grams, calories in kcal. Use USDA or Indian food composition data. For combined items (e.g. "rice and sambar"), sum all components.`,
+            content: `You are a nutrition database. Given a food item and quantity, return accurate nutritional estimates in JSON: {"calories": number, "protein": number, "carbs": number, "fats": number, "fiber": number, "quantity": "description"}. All macro values in grams, calories in kcal. Use USDA or Indian food composition data (NIN/IFCT). For combined items (e.g. "rice and sambar"), sum all components. Be precise — a single idli is ~52 kcal, one egg is ~78 kcal, 1 cup rice is ~195 kcal.`,
           },
           { role: "user", content: `Nutritional info for: "${input}"` },
         ],
@@ -213,15 +638,14 @@ async function lookupViaAI(input: string, originalName: string): Promise<Nutriti
       };
     }
   } catch (err) {
-    console.error("[ApexFit] OpenAI nutrition lookup failed:", err);
+    console.error("[NutritionEngine] OpenAI lookup failed:", err);
   }
 
   return null;
 }
 
-// Split compound input into parts and look up each from local DB
+// ─── Compound lookup (rice and dal, etc.) ────────────────────────
 function lookupCompoundLocal(input: string): NutritionResult | null {
-  // Split on "and", "with", "&", commas
   const parts = input
     .toLowerCase()
     .split(/\s+and\s+|\s+with\s+|\s*&\s*|\s*,\s*/)
@@ -232,74 +656,63 @@ function lookupCompoundLocal(input: string): NutritionResult | null {
 
   let totalCal = 0, totalPro = 0, totalCarb = 0, totalFat = 0, totalFib = 0;
   const quantityParts: string[] = [];
+  const debugParts: string[] = [];
   let matchCount = 0;
 
   for (const part of parts) {
-    const partParsed = parseInput(part + " "); // add space to avoid complex re-detection
-    // Re-parse without complex flag
-    const trimmed = part.trim().toLowerCase();
-
-    // Try gram pattern
-    const gramMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:g|gm|gms|gram|grams)\s+(.+)$/);
-    const mlMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:ml)\s+(.+)$/);
-    const countMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
-
-    let grams: number | null = null;
-    let count: number | null = null;
-    let foodKey = trimmed;
-
-    if (gramMatch) {
-      grams = parseFloat(gramMatch[1]);
-      foodKey = gramMatch[2].trim();
-    } else if (mlMatch) {
-      grams = parseFloat(mlMatch[1]);
-      foodKey = mlMatch[2].trim();
-    } else if (countMatch) {
-      count = parseFloat(countMatch[1]);
-      foodKey = countMatch[2].trim();
-    } else {
-      count = 1;
-    }
-
-    const match = lookupLocal(foodKey);
+    const parsed = parseInput(part);
+    const match = lookupLocal(parsed.foodKey);
     if (match) {
-      const result = calcFromDb(match.data, grams, count);
+      const result = calcFromDb(match.data, parsed.grams, parsed.count);
       totalCal += result.calories;
       totalPro += result.protein;
       totalCarb += result.carbs;
       totalFat += result.fats;
       totalFib += result.fiber;
       quantityParts.push(result.quantity);
+      debugParts.push(`${match.key}: ${result.debug}`);
       matchCount++;
     }
   }
 
-  // Only return if we matched at least one part
   if (matchCount === 0) return null;
 
   return {
     foodName: input.trim(),
     quantity: quantityParts.join(" + "),
     calories: totalCal,
-    protein: totalPro,
-    carbs: totalCarb,
-    fats: totalFat,
-    fiber: totalFib,
+    protein: Math.round(totalPro),
+    carbs: Math.round(totalCarb),
+    fats: Math.round(totalFat),
+    fiber: Math.round(totalFib),
     source: "database",
+    debug: debugParts.join(" | "),
   };
 }
 
+// ─── MAIN ENTRY POINT ───────────────────────────────────────────
 export async function lookupNutrition(input: string): Promise<NutritionResult> {
   const parsed = parseInput(input);
 
-  // Complex queries (with "and", "with") → try AI first, then local compound split
+  console.log(`[NutritionEngine] Input: "${input}" → parsed:`, {
+    grams: parsed.grams,
+    count: parsed.count,
+    foodKey: parsed.foodKey,
+    isComplex: parsed.isComplex,
+  });
+
+  // Complex queries (with "and", "with") → try local compound first, then AI
   if (parsed.isComplex) {
+    // Try local compound first (faster & free)
+    const compoundResult = lookupCompoundLocal(input);
+    if (compoundResult) {
+      console.log(`[NutritionEngine] Compound match:`, compoundResult.debug);
+      return compoundResult;
+    }
+
+    // Fall back to AI
     const aiResult = await lookupViaAI(input, parsed.originalName);
     if (aiResult) return aiResult;
-
-    // AI unavailable — try splitting and looking up each part locally
-    const compoundResult = lookupCompoundLocal(input);
-    if (compoundResult) return compoundResult;
   }
 
   // Try local database for simple queries
@@ -307,6 +720,7 @@ export async function lookupNutrition(input: string): Promise<NutritionResult> {
     const match = lookupLocal(parsed.foodKey);
     if (match) {
       const result = calcFromDb(match.data, parsed.grams, parsed.count);
+      console.log(`[NutritionEngine] DB match: ${match.key} → ${result.debug}`);
       return {
         foodName: parsed.originalName,
         quantity: result.quantity,
@@ -316,6 +730,7 @@ export async function lookupNutrition(input: string): Promise<NutritionResult> {
         fats: result.fats,
         fiber: result.fiber,
         source: "database",
+        debug: result.debug,
       };
     }
   }
@@ -324,16 +739,18 @@ export async function lookupNutrition(input: string): Promise<NutritionResult> {
   const aiResult = await lookupViaAI(input, parsed.originalName);
   if (aiResult) return aiResult;
 
-  // Fallback estimate
-  const servings = parsed.count || 1;
+  // ─── SAFE FALLBACK (no more crazy 200×servings) ───
+  // Estimate based on a single reasonable portion, NOT multiplied by count
+  console.warn(`[NutritionEngine] No match found for "${input}", using safe fallback`);
   return {
     foodName: parsed.originalName,
-    quantity: `${servings} serving(s)`,
-    calories: Math.round(200 * servings),
-    protein: Math.round(10 * servings),
-    carbs: Math.round(25 * servings),
-    fats: Math.round(8 * servings),
-    fiber: Math.round(2 * servings),
+    quantity: "1 estimated serving",
+    calories: 200,
+    protein: 8,
+    carbs: 25,
+    fats: 7,
+    fiber: 2,
     source: "estimate",
+    debug: `[FALLBACK] No DB/AI match for "${parsed.foodKey}"`,
   };
 }

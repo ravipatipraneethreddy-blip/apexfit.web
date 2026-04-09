@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
 import { isDbAvailable } from "./auth.actions";
 import { checkAndUnlockBadges } from "./achievements.actions";
+import {
+  getStartOfDayInTimezone,
+  getEndOfDayInTimezone,
+  getStartOfWeekInTimezone,
+} from "@/lib/timezone";
 
 export async function logMeal(formData: FormData) {
   const user = await getUserProfile();
@@ -88,7 +93,7 @@ export async function deleteMeal(mealId: string) {
   return { success: true };
 }
 
-export async function getTodaysMeals() {
+export async function getTodaysMeals(timezone: string = "Asia/Kolkata") {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -99,13 +104,13 @@ export async function getTodaysMeals() {
     const user = await getUserProfile();
     if (!user) return [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const startOfDay = getStartOfDayInTimezone(timezone);
+    const endOfDay = getEndOfDayInTimezone(timezone);
 
     const meals = await prisma!.mealLog.findMany({
       where: {
         userId: user.id,
-        date: { gte: today },
+        date: { gte: startOfDay, lt: endOfDay },
         planned: false,
       },
       orderBy: { date: "desc" },
@@ -117,18 +122,15 @@ export async function getTodaysMeals() {
   }
 }
 
-export async function getWeeklyMeals() {
+export async function getWeeklyMeals(timezone: string = "Asia/Kolkata") {
   const dbReady = await isDbAvailable();
-  const startOfWeek = new Date();
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(endOfWeek.getDate() + 7);
 
   if (!dbReady) {
     return [];
   }
+
+  const startOfWeek = getStartOfWeekInTimezone(timezone);
+  const endOfWeek = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   try {
     const user = await getUserProfile();
@@ -148,16 +150,20 @@ export async function getWeeklyMeals() {
   }
 }
 
-export async function getWeeklyNutritionSummary() {
+export async function getWeeklyNutritionSummary(timezone: string = "Asia/Kolkata") {
   const now = new Date();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  // Get the current date in user's timezone for proper day labeling
+  const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
   // Generate zeroed-out 7-day data as default
   const emptyData = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(now.getTime() - (6 - i) * 86400000);
+    const dateKey = date.toLocaleDateString("en-CA", { timeZone: timezone });
     return {
-      day: dayNames[date.getDay()],
-      date: date.toISOString().slice(0, 10),
+      day: dayNames[new Date(dateKey).getDay()],
+      date: dateKey,
       calories: 0,
       protein: 0,
       carbs: 0,
@@ -175,8 +181,9 @@ export async function getWeeklyNutritionSummary() {
     const user = await getUserProfile();
     if (!user) return emptyData;
 
-    const weekAgo = new Date(now.getTime() - 7 * 86400000);
-    weekAgo.setHours(0, 0, 0, 0);
+    // Go back 7 days from start of today in user's timezone
+    const startOfToday = getStartOfDayInTimezone(timezone);
+    const weekAgo = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const meals = await prisma!.mealLog.findMany({
       where: {
@@ -188,20 +195,20 @@ export async function getWeeklyNutritionSummary() {
 
     if (meals.length === 0) return emptyData;
 
-    // Group by day
+    // Group by day in user's timezone
     const grouped = new Map<string, typeof meals>();
     for (const meal of meals) {
-      const key = new Date(meal.date).toISOString().slice(0, 10);
+      const key = new Date(meal.date).toLocaleDateString("en-CA", { timeZone: timezone });
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(meal);
     }
 
     const result = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(now.getTime() - (6 - i) * 86400000);
-      const key = date.toISOString().slice(0, 10);
+      const key = date.toLocaleDateString("en-CA", { timeZone: timezone });
       const dayMeals = grouped.get(key) || [];
       return {
-        day: dayNames[date.getDay()],
+        day: dayNames[new Date(key).getDay()],
         date: key,
         calories: dayMeals.reduce((s, m) => s + m.calories, 0),
         protein: Math.round(dayMeals.reduce((s, m) => s + m.protein, 0)),

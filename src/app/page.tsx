@@ -4,6 +4,7 @@ import { getRecentWorkouts } from "@/actions/workout.actions";
 import { getCoachAnalysis } from "@/actions/ai.actions";
 import { getTodaysWater } from "@/actions/water.actions";
 import { getProgressData } from "@/actions/progress.actions";
+import { getUserTimezone } from "@/lib/timezone";
 import DashboardClient from "./dashboard-client";
 import { redirect } from "next/navigation";
 
@@ -14,10 +15,12 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  const timezone = await getUserTimezone();
+
   const [meals, workouts, analysis, water, progress] = await Promise.all([
-    getTodaysMeals(),
+    getTodaysMeals(timezone),
     getRecentWorkouts(),
-    getCoachAnalysis(),
+    getCoachAnalysis(timezone),
     getTodaysWater(),
     getProgressData(),
   ]);
