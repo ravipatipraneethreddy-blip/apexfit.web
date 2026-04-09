@@ -105,13 +105,15 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
   const TARGET_PRO = user.targetProtein || 180;
   const TARGET_CARB = user.targetCarbs || 250;
   const TARGET_FAT = user.targetFats || 65;
+  const TARGET_FIBER = 30; // Standard recommended daily fiber intake
 
   const filteredMeals = meals.filter((m) => new Date(m.date).toDateString() === selectedDate.toDateString());
 
-  const eatenCals = filteredMeals.reduce((sum, m) => sum + m.calories, 0);
-  const eatenPro = filteredMeals.reduce((sum, m) => sum + m.protein, 0);
-  const eatenCarb = filteredMeals.reduce((sum, m) => sum + m.carbs, 0);
-  const eatenFat = filteredMeals.reduce((sum, m) => sum + m.fats, 0);
+  const eatenCals = filteredMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+  const eatenPro = filteredMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
+  const eatenCarb = filteredMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
+  const eatenFat = filteredMeals.reduce((sum: number, m: any) => sum + m.fats, 0);
+  const eatenFiber = filteredMeals.reduce((sum: number, m: any) => sum + (m.fiber || 0), 0);
 
   const handleLookup = async () => {
     if (!searchInput.trim()) return;
@@ -233,6 +235,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
     formData.append("protein", (isEditing ? editValues.protein : lookupResult.protein).toString());
     formData.append("carbs", (isEditing ? editValues.carbs : lookupResult.carbs).toString());
     formData.append("fats", (isEditing ? editValues.fats : lookupResult.fats).toString());
+    formData.append("fiber", (isEditing ? editValues.fiber : lookupResult.fiber).toString());
     formData.append("planned", isFutureDate ? "true" : "false");
     formData.append("date", selectedDate.toISOString());
     try {
@@ -282,6 +285,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
           formData.append("protein", meal.protein.toString());
           formData.append("carbs", meal.carbs.toString());
           formData.append("fats", meal.fats.toString());
+          formData.append("fiber", (meal.fiber || 0).toString());
           formData.append("planned", "true"); // Always plan AI meals
           formData.append("date", selectedDate.toISOString());
           await logMeal(formData);
@@ -356,6 +360,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
             <MacroRing value={eatenPro} max={TARGET_PRO} color="#60a5fa" label="Protein" unit="g" />
             <MacroRing value={eatenCarb} max={TARGET_CARB} color="#f97316" label="Carbs" unit="g" />
             <MacroRing value={eatenFat} max={TARGET_FAT} color="#34d399" label="Fats" unit="g" />
+            <MacroRing value={Math.round(eatenFiber)} max={TARGET_FIBER} color="#a78bfa" label="Fiber" unit="g" />
           </div>
         </motion.div>
 
@@ -599,6 +604,7 @@ export default function DietClient({ user, meals }: { user: any; meals: any[] })
                     <span className="text-blue-400">{item.protein}P</span>
                     <span className="text-orange-400">{item.carbs}C</span>
                     <span className="text-emerald-400">{item.fats}F</span>
+                    {item.fiber > 0 && <span className="text-purple-400">{item.fiber}Fib</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

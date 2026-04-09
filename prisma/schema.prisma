@@ -53,6 +53,7 @@ model MealLog {
   protein   Float
   carbs     Float
   fats      Float
+  fiber     Float    @default(0)
   planned   Boolean  @default(false) // If true, it's a future plan, not yet eaten.
   
   user      User     @relation(fields: [userId], references: [id])

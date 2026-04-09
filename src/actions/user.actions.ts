@@ -361,9 +361,9 @@ export async function exportUserData() {
 
   if (!user) return { error: "User not found" };
 
-  const mealsCsv = ["Date,Food,Calories,Protein,Carbs,Fats,Planned"];
-  user.meals.forEach(m => {
-    mealsCsv.push(`${m.date.toISOString()},"${m.foodName}",${m.calories},${m.protein},${m.carbs},${m.fats},${m.planned}`);
+  const mealsCsv = ["Date,Food,Calories,Protein,Carbs,Fats,Fiber,Planned"];
+  user.meals.forEach((m: any) => {
+    mealsCsv.push(`${m.date.toISOString()},"${m.foodName}",${m.calories},${m.protein},${m.carbs},${m.fats},${m.fiber || 0},${m.planned}`);
   });
 
   const workoutsCsv = ["Date,Workout,Exercise,Sets,Reps,Weight"];

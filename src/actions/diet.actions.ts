@@ -17,6 +17,7 @@ const MOCK_MEALS = [
     protein: 45,
     carbs: 0,
     fats: 12,
+    fiber: 0,
     planned: false,
   },
   {
@@ -28,6 +29,7 @@ const MOCK_MEALS = [
     protein: 12,
     carbs: 78,
     fats: 6,
+    fiber: 4,
     planned: false,
   },
   {
@@ -39,6 +41,7 @@ const MOCK_MEALS = [
     protein: 25,
     carbs: 3,
     fats: 2,
+    fiber: 0,
     planned: false,
   },
 ];
@@ -56,6 +59,7 @@ export async function logMeal(formData: FormData) {
   const protein = formData.get("protein") as string;
   const carbs = formData.get("carbs") as string;
   const fats = formData.get("fats") as string;
+  const fiberStr = formData.get("fiber") as string;
   const plannedStr = formData.get("planned") as string;
   const dateStr = formData.get("date") as string;
 
@@ -79,6 +83,7 @@ export async function logMeal(formData: FormData) {
       protein: parseFloat(protein),
       carbs: parseFloat(carbs),
       fats: parseFloat(fats),
+      fiber: parseFloat(fiberStr || "0"),
       planned: isPlanned,
     } as any);
     revalidatePath("/diet");
@@ -94,6 +99,7 @@ export async function logMeal(formData: FormData) {
           protein: parseFloat(protein),
           carbs: parseFloat(carbs),
           fats: parseFloat(fats),
+          fiber: parseFloat(fiberStr || "0"),
           planned: isPlanned,
         },
       });
