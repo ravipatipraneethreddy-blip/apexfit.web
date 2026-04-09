@@ -12,7 +12,7 @@ export default async function ExerciseLibraryPage() {
   }
 
   // 1. Automatically bulk-seed the exercises if not already seeded
-  await checkAndSeedExercises();
+  const syncResult = await checkAndSeedExercises();
 
   // 2. Load cached exercises
   const initialExercises = await getExercises("", "All", 50);
@@ -22,7 +22,8 @@ export default async function ExerciseLibraryPage() {
     <ExerciseLibraryClient 
       user={user} 
       initialExercises={initialExercises} 
-      bodyParts={bodyParts} 
+      bodyParts={bodyParts}
+      syncResult={syncResult}
     />
   );
 }

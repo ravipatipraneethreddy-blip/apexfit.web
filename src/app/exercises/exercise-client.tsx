@@ -15,6 +15,7 @@ export default function ExerciseLibraryClient({
   user: any;
   initialExercises: any[];
   bodyParts: string[];
+  syncResult?: any;
 }) {
   const [exercises, setExercises] = useState(initialExercises);
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,6 +55,13 @@ export default function ExerciseLibraryClient({
             </div>
           </div>
         </header>
+
+        {syncResult?.error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-xl mb-6 text-sm font-semibold flex flex-col gap-1">
+            <span>🚨 Database Sync Failed: {syncResult.error}</span>
+            <span className="text-xs text-red-400">Please make sure `RAPIDAPI_KEY` is added to your Vercel Environment Variables and rebuilt.</span>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="glass-panel p-4 rounded-3xl mb-8 flex flex-col md:flex-row gap-4 items-center">
