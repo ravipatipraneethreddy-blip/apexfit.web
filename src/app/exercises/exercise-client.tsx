@@ -70,7 +70,10 @@ export default function ExerciseLibraryClient({
           
           <div className="w-full flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
             <button
-              onClick={() => setActiveBodyPart("All")}
+              onClick={() => {
+                setActiveBodyPart("All");
+                setSearchQuery("");
+              }}
               className={`shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                 activeBodyPart === "All"
                   ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(0,229,255,0.3)]"
@@ -82,7 +85,10 @@ export default function ExerciseLibraryClient({
             {bodyParts.map((bp) => (
               <button
                 key={bp}
-                onClick={() => setActiveBodyPart(bp)}
+                onClick={() => {
+                  setActiveBodyPart(bp);
+                  setSearchQuery("");
+                }}
                 className={`shrink-0 px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
                   activeBodyPart === bp
                     ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(0,229,255,0.3)]"
@@ -96,7 +102,7 @@ export default function ExerciseLibraryClient({
         </div>
 
         {/* Exercises Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-300 ${isLoading ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
           {isLoading && exercises.length === 0 ? (
             <p className="col-span-full text-center text-muted-foreground py-10 font-bold animate-pulse">
               Loading exercises...
