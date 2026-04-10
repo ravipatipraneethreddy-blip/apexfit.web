@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import ExerciseLibraryClient from "./exercise-client";
 
 export const metadata = { title: "Exercise Library | ApexFit" };
+export const dynamic = "force-dynamic";
 
 export default async function ExerciseLibraryPage() {
   const user = await getUserProfile();
