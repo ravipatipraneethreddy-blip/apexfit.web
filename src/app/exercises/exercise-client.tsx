@@ -30,8 +30,12 @@ export default function ExerciseLibraryClient({
   useEffect(() => {
     async function fetchFiltered() {
       setIsLoading(true);
-      const res = await getExercises(debouncedSearch, activeBodyPart, 100);
-      setExercises(res);
+      try {
+        const res = await getExercises(debouncedSearch, activeBodyPart, 100);
+        setExercises(res || []);
+      } catch (err) {
+        console.error("Failed to fetch exercises:", err);
+      }
       setIsLoading(false);
     }
     // Only fetch if it's different from the initial load
