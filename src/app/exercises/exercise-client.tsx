@@ -36,7 +36,7 @@ export default function ExerciseLibraryClient({
   }, [debouncedSearch, activeBodyPart]);
 
   return (
-    <div className="min-h-screen p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
+    <div className="min-h-[100dvh] p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
       <div className="max-w-5xl w-full">
         {/* Header */}
         <header className="flex items-center justify-between mb-8">
