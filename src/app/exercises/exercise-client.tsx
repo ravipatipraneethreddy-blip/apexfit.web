@@ -60,10 +60,11 @@ export default function ExerciseLibraryClient({
         {/* Header */}
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <Link href="/">
-              <button className="p-2 rounded-xl bg-secondary hover:bg-secondary/70 transition">
-                <ArrowLeft className="w-5 h-5 text-foreground" />
-              </button>
+            <Link 
+              href="/"
+              className="p-2 rounded-xl bg-secondary hover:bg-secondary/70 transition inline-flex items-center justify-center cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5 text-foreground" />
             </Link>
             <div>
               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
