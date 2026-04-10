@@ -6,52 +6,38 @@ export async function checkAndSeedExercises() {
   try {
     // 1. Check if we already have exercises seeded locally
     const count = await prisma.cachedExercise.count();
-    if (count > 1000) {
+    if (count > 0) {
       return { success: true, message: "Already seeded", count };
     }
 
-    // Purge incomplete cache to start fresh
-    if (count > 0) {
-      await prisma.cachedExercise.deleteMany({});
-    }
-
-    // 2. Fetch from RapidAPI with safe pagination
+    // 2. Fetch from RapidAPI if our DB is empty
     const apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) {
       return { error: "Missing RAPIDAPI_KEY in environment variables." };
     }
 
-    let allExercises: any[] = [];
-    const limit = 100;
-    
-    for (let offset = 0; offset < 1400; offset += limit) {
-      const url = `https://exercisedb.p.rapidapi.com/exercises?limit=${limit}&offset=${offset}`;
-      const options = {
-        method: "GET",
-        headers: {
-          "X-RapidAPI-Key": apiKey,
-          "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
-        },
-      };
+    const url = "https://exercisedb.p.rapidapi.com/exercises?limit=100&offset=0";
+    const options = {
+      method: "GET",
+      headers: {
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
+      },
+    };
 
-      const response = await fetch(url, options);
-      if (!response.ok) break;
-
-      const data = await response.json();
-      if (!Array.isArray(data) || data.length === 0) break;
-
-      allExercises = [...allExercises, ...data];
-      
-      // If we got less than the limit, we hit the end
-      if (data.length < limit) break;
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      return { error: "Failed to fetch from ExerciseDB API." };
     }
 
-    if (allExercises.length === 0) {
-      return { error: "Failed to fetch any data from ExerciseDB." };
+    const data = await response.json();
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      return { error: "Invalid data received from ExerciseDB." };
     }
 
     // 3. Save into our local DB cache using createMany
-    const insertData = allExercises.map((ex: any) => ({
+    const insertData = data.map((ex: any) => ({
       id: ex.id,
       name: ex.name,
       bodyPart: ex.bodyPart,
@@ -78,10 +64,10 @@ export async function getExercises(query: string = "", bodyPart: string = "All",
   try {
     const whereClause: any = {};
     if (query) {
-      whereClause.name = { contains: query, mode: "insensitive" };
+      whereClause.name = { contains: query.toLowerCase() };
     }
     if (bodyPart !== "All") {
-      whereClause.bodyPart = { equals: bodyPart, mode: "insensitive" };
+      whereClause.bodyPart = { equals: bodyPart.toLowerCase() };
     }
 
     const exercises = await prisma.cachedExercise.findMany({
