@@ -1,65 +1,108 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { isDbAvailable } from "./auth.actions";
-import { revalidatePath } from "next/cache";
+import { getUserProfile } from "./user.actions";
+import { BADGE_DEFINITIONS } from "@/lib/constants";
 
-export async function getEarnedBadges(userId: string) {
-  const dbReady = await isDbAvailable();
-  if (!dbReady) {
-    return [];
-  }
+export async function getUserAchievements() {
+  const user = await getUserProfile();
+  if (!user) return [];
 
-  const records = await prisma.achievement.findMany({
-    where: { userId },
-    select: { badgeId: true },
+  const achievements = await prisma.achievement.findMany({
+    where: { userId: user.id },
+    orderBy: { unlockedAt: "desc" },
   });
-  return records.map((r: { badgeId: string }) => r.badgeId);
+
+  return achievements.map(a => a.badgeId);
 }
 
-export async function checkAndUnlockBadges(userId: string, triggers: { loggedWorkout?: boolean, loggedMeal?: boolean, maxWeightLifted?: number, waterHitGoal?: boolean, macrosHitGoal?: boolean }) {
-  const dbReady = await isDbAvailable();
-  if (!dbReady) return [];
+export async function checkAndUnlockAchievement(badgeId: string) {
+  const user = await getUserProfile();
+  if (!user) return { unlocked: false };
 
-  const earned = await getEarnedBadges(userId);
-  const nowEarned: string[] = [];
+  // Verify the badge exists
+  const def = BADGE_DEFINITIONS.find(b => b.id === badgeId);
+  if (!def) return { unlocked: false };
 
-  const grantBadge = async (badgeId: string) => {
-    if (earned.includes(badgeId) || nowEarned.includes(badgeId)) return;
-    
-    await prisma.achievement.create({
-      data: { userId, badgeId }
-    });
-    nowEarned.push(badgeId);
-  };
+  // Check if they already have it
+  const existing = await prisma.achievement.findUnique({
+    where: {
+      userId_badgeId: {
+        userId: user.id,
+        badgeId: badgeId,
+      }
+    }
+  });
 
-  if (triggers.loggedWorkout) {
-    await grantBadge("FIRST_WORKOUT");
+  if (existing) {
+    return { unlocked: false };
   }
 
-  if (triggers.loggedMeal) {
-    await grantBadge("FIRST_MEAL");
+  // Unlock it!
+  await prisma.achievement.create({
+    data: {
+      userId: user.id,
+      badgeId: badgeId,
+    }
+  });
+
+  return { unlocked: true, badge: def };
+}
+
+// System checks that can be exported and run periodically or after actions
+export async function runMilestoneChecks() {
+  const user = await getUserProfile();
+  if (!user) return [];
+
+  const newlyUnlocked = [];
+
+  // Streak Checks
+  if (user.streakDays >= 7) {
+    const res = await checkAndUnlockAchievement("7_DAY_STREAK");
+    if (res.unlocked) newlyUnlocked.push(res.badge);
+  }
+  if (user.streakDays >= 3) {
+    const res = await checkAndUnlockAchievement("3_DAY_STREAK");
+    if (res.unlocked) newlyUnlocked.push(res.badge);
   }
 
-  if (triggers.maxWeightLifted && triggers.maxWeightLifted >= 100) {
-    await grantBadge("100KG_CLUB");
+  // Meal Checks
+  const meals = await prisma.mealLog.findMany({ where: { userId: user.id } });
+  if (meals.length > 0) {
+    const res = await checkAndUnlockAchievement("FIRST_MEAL");
+    if (res.unlocked) newlyUnlocked.push(res.badge);
   }
 
-  if (triggers.waterHitGoal) {
-    await grantBadge("HYDRATION_HERO");
+  // Water Check
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const waterLogs = await prisma.waterLog.findMany({
+    where: { userId: user.id, loggedAt: { gte: todayStart } }
+  });
+  const totalWater = waterLogs.reduce((acc, w) => acc + w.amount, 0);
+  if (totalWater >= 3000) {
+    const res = await checkAndUnlockAchievement("HYDRATION_HERO");
+    if (res.unlocked) newlyUnlocked.push(res.badge);
   }
 
-  if (triggers.macrosHitGoal) {
-    await grantBadge("MACRO_MASTER");
-  }
-  
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (user && user.streakDays >= 3) await grantBadge("3_DAY_STREAK");
-  if (user && user.streakDays >= 7) await grantBadge("7_DAY_STREAK");
-
-  if (nowEarned.length > 0) {
-    revalidatePath("/profile");
+  // Workout Checks
+  const workouts = await prisma.workoutLog.findMany({ where: { userId: user.id } });
+  if (workouts.length > 0) {
+    const res = await checkAndUnlockAchievement("FIRST_WORKOUT");
+    if (res.unlocked) newlyUnlocked.push(res.badge);
   }
 
-  return nowEarned;
+  // 100KG check requires deep query
+  const heavySets = await prisma.exerciseLog.findFirst({
+    where: {
+      workoutLog: { userId: user.id },
+      weight: { gte: 100 }
+    }
+  });
+  if (heavySets) {
+    const res = await checkAndUnlockAchievement("100KG_CLUB");
+    if (res.unlocked) newlyUnlocked.push(res.badge);
+  }
+
+  return newlyUnlocked;
 }
