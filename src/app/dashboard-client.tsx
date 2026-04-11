@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import WaterTracker from "@/components/water-tracker";
-import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3, Wheat, Droplet, Leaf, Send, Loader2, X } from "lucide-react";
+import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3, Wheat, Droplet, Leaf, Send, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { askCoachQuestion } from "@/actions/ai.actions";
 import {
@@ -71,7 +71,6 @@ export default function DashboardClient({
   analysis,
   waterMl = 0,
   weightLogs,
-  newlyUnlocked,
 }: {
   user: any;
   meals: any[];
@@ -79,7 +78,6 @@ export default function DashboardClient({
   analysis: { adherence: string; insight: string; recommendation: string };
   waterMl?: number;
   weightLogs?: any[];
-  newlyUnlocked?: any[];
 }) {
   const totalCals = Math.round(meals.reduce((sum, m) => sum + m.calories, 0));
   const totalPro = r1(meals.reduce((sum, m) => sum + m.protein, 0));
@@ -131,71 +129,9 @@ export default function DashboardClient({
     return data.length > 0 ? data : [{ name: "Today", weight: user.weight || 0 }];
   }, [weightLogs, weightPeriod, user.weight]);
 
-  const [showTrophyModal, setShowTrophyModal] = useState(false);
-  const [unlockedBadges, setUnlockedBadges] = useState<any[]>([]);
-
-  // Trigger achievement overlay
-  useEffect(() => {
-    if (newlyUnlocked && newlyUnlocked.length > 0 && !showTrophyModal && unlockedBadges.length === 0) {
-      setUnlockedBadges(newlyUnlocked);
-      setShowTrophyModal(true);
-    }
-  }, [newlyUnlocked, showTrophyModal, unlockedBadges.length]);
-
   return (
-    <div className="min-h-[100dvh] p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
+    <div className="min-h-screen p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
       <div className="max-w-5xl w-full">
-        {/* Trophy Overlay Modal */}
-        <AnimatePresence>
-          {showTrophyModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-            >
-              <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/10 via-transparent to-transparent pointer-events-none" />
-              
-              <motion.div
-                initial={{ scale: 0.8, y: 50, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.8, y: 50, opacity: 0 }}
-                transition={{ type: "spring", bounce: 0.5 }}
-                className="bg-card w-full max-w-sm rounded-[2rem] p-6 text-center border-2 border-yellow-500/50 shadow-[0_0_50px_-12px_rgba(234,179,8,0.5)] relative overflow-hidden"
-              >
-                <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-yellow-500/20 to-transparent" />
-                
-                <h2 className="text-2xl font-black text-yellow-500 tracking-tight uppercase mb-6 relative z-10">
-                  Achievement Unlocked!
-                </h2>
-                
-                <div className="space-y-6 relative z-10">
-                  {unlockedBadges.map((badge: any, i: number) => (
-                    <motion.div
-                      key={i}
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
-                      transition={{ delay: i * 0.2 + 0.3, type: "spring" }}
-                      className="bg-background rounded-2xl p-4 border border-yellow-500/20 shadow-inner flex flex-col items-center gap-2"
-                    >
-                      <div className="text-6xl drop-shadow-2xl">{badge.icon}</div>
-                      <h3 className="font-bold text-lg">{badge.name}</h3>
-                      <p className="text-xs text-muted-foreground">{badge.description}</p>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setShowTrophyModal(false)}
-                  className="mt-8 w-full py-4 bg-yellow-500 text-yellow-950 font-black rounded-xl hover:bg-yellow-400 transition transform hover:scale-105 active:scale-95"
-                >
-                  Awesome!
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Header */}
         <header className="flex items-center justify-between mb-8 pb-4 border-b border-border">
           <div className="flex items-center gap-2">

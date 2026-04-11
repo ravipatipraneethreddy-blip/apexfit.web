@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
 import { isDbAvailable } from "./auth.actions";
-
+import { checkAndUnlockBadges } from "./achievements.actions";
 import {
   getStartOfDayInTimezone,
   getEndOfDayInTimezone,
@@ -64,8 +64,11 @@ export async function logMeal(formData: FormData) {
   if (!isPlanned) {
     try {
       await checkAndUpdateStreak(user.id);
+      await checkAndUnlockBadges(user.id, {
+        loggedMeal: true,
+      });
     } catch (err) {
-      console.error("Failed to check streak", err);
+      console.error("Failed to check badges", err);
     }
   }
 

@@ -20,19 +20,10 @@ export const metadata: Metadata = {
   title: "ApexFit | AI Personal Coach",
   description: "Your dynamic AI-powered fitness and nutrition coach.",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "ApexFit",
-  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#000000",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -42,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="antialiased min-h-[100dvh] bg-background text-foreground selection:bg-primary/30">
+      <body className="antialiased min-h-screen bg-background text-foreground selection:bg-primary/30">
         <ThemeProvider>
           <ToastProvider>
             <AppShell>{children}</AppShell>

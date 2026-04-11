@@ -4,13 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Loader2, Search, Trash2, Check, Edit3,
-  BrainCircuit, Database, HelpCircle, ScanLine, X, Plus, Minus, Camera, MoreVertical
+  BrainCircuit, Database, HelpCircle, ScanLine, X, Plus, Minus
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { logMeal, deleteMeal } from "@/actions/diet.actions";
 import { lookupNutrition, getFoodSuggestions, type NutritionResult } from "@/actions/nutrition.actions";
-import { analyzeFoodImage } from "@/actions/ai.actions";
+import { useRouter } from "next/navigation";
 
 // Round to 1 decimal place
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -76,7 +75,6 @@ export default function DietClient({ user, meals, recentFoods = [] }: { user: an
   // Barcode Scanner State
   const [isScanning, setIsScanning] = useState(false);
   const [scannerError, setScannerError] = useState("");
-  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
@@ -277,70 +275,6 @@ export default function DietClient({ user, meals, recentFoods = [] }: { user: an
       console.error(e);
     }
     setIsLooking(false);
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsAnalyzingPhoto(true);
-    setLookupResult(null);
-
-    // Compress image before sending to avoid payload limits
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const MAX_WIDTH = 800; // sufficiently small for AI Vision
-        let width = img.width;
-        let height = img.height;
-
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        ctx?.drawImage(img, 0, 0, width, height);
-        const base64String = canvas.toDataURL("image/jpeg", 0.7);
-
-        try {
-          const res = await analyzeFoodImage(base64String);
-          if (res.success && res.data) {
-            setSearchInput(`Vision: ${res.data.foodName}`);
-            const result: NutritionResult = {
-              foodName: res.data.foodName,
-              quantity: "AI Estimated Serving",
-              calories: res.data.calories,
-              protein: res.data.protein,
-              carbs: res.data.carbs,
-              fats: res.data.fats,
-              fiber: res.data.fiber,
-              source: "database", // reusing badge UI
-            };
-            setLookupResult(result);
-            setEditValues({
-              calories: result.calories,
-              protein: result.protein,
-              carbs: result.carbs,
-              fats: result.fats,
-              fiber: result.fiber,
-            });
-          } else {
-            alert(res.error || "Failed to analyze image.");
-          }
-        } catch (err) {
-          console.error(err);
-          alert("Error communicating with AI Vision.");
-        }
-        setIsAnalyzingPhoto(false);
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
   };
 
   // -- Barcode Scanning Logic --
@@ -604,26 +538,6 @@ export default function DietClient({ user, meals, recentFoods = [] }: { user: an
                 )}
               </AnimatePresence>
             </div>
-            
-            {/* hidden file input for AI Photo */}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              ref={fileInputRef}
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
-            
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isAnalyzingPhoto}
-              className="bg-primary/10 text-primary border border-primary/30 rounded-2xl px-4 flex items-center justify-center hover:bg-primary/20 transition shadow-sm disabled:opacity-50"
-              title="Snap Food AI"
-            >
-              {isAnalyzingPhoto ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-            </button>
-
             <button
               onClick={() => {
                 setScannerError("");

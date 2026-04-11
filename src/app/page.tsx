@@ -5,7 +5,6 @@ import { getCoachAnalysis } from "@/actions/ai.actions";
 import { getTodaysWater } from "@/actions/water.actions";
 import { getProgressData } from "@/actions/progress.actions";
 import { getUserTimezone } from "@/lib/timezone";
-import { runMilestoneChecks } from "@/actions/achievements.actions";
 import DashboardClient from "./dashboard-client";
 import { redirect } from "next/navigation";
 
@@ -18,13 +17,12 @@ export default async function DashboardPage() {
 
   const timezone = await getUserTimezone();
 
-  const [meals, workouts, analysis, water, progress, newlyUnlocked] = await Promise.all([
+  const [meals, workouts, analysis, water, progress] = await Promise.all([
     getTodaysMeals(timezone),
     getRecentWorkouts(),
     getCoachAnalysis(timezone),
     getTodaysWater(),
     getProgressData(),
-    runMilestoneChecks(),
   ]);
 
   return (
@@ -35,7 +33,6 @@ export default async function DashboardPage() {
       analysis={analysis}
       waterMl={water.totalMl}
       weightLogs={progress.weightLogs}
-      newlyUnlocked={newlyUnlocked}
     />
   );
 }

@@ -12,7 +12,6 @@ type TDEEInput = {
   gender: string;      // MALE or FEMALE
   activityLevel: string;
   goal: string;        // FAT_LOSS, MUSCLE_GAIN, RECOMP
-  overrideCalories?: number; // allow custom calorie input
 };
 
 type TDEEResult = {
@@ -39,7 +38,7 @@ const GOAL_ADJUSTMENTS: Record<string, number> = {
 };
 
 export function calculateTDEE(input: TDEEInput): TDEEResult {
-  const { weight, height, age, gender, activityLevel, goal, overrideCalories } = input;
+  const { weight, height, age, gender, activityLevel, goal } = input;
 
   // 1. Calculate BMR (Mifflin-St Jeor)
   const bmr =
@@ -52,13 +51,8 @@ export function calculateTDEE(input: TDEEInput): TDEEResult {
   const tdee = Math.round(bmr * multiplier);
 
   // 3. Apply goal adjustment
-  let calories;
-  if (overrideCalories && overrideCalories > 0) {
-    calories = overrideCalories;
-  } else {
-    const adjustment = GOAL_ADJUSTMENTS[goal] ?? 0;
-    calories = Math.round(tdee + adjustment);
-  }
+  const adjustment = GOAL_ADJUSTMENTS[goal] ?? 0;
+  const calories = Math.round(tdee + adjustment);
 
   // 4. Derive macros
   const protein = Math.round(weight * 2);               // 2g per kg

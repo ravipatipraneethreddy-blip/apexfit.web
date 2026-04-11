@@ -11,8 +11,7 @@ async function isDbAvailable(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return true;
-  } catch (error) {
-    console.error("isDbAvailable Prisma Connection Error:", error);
+  } catch {
     return false;
   }
 }
@@ -88,7 +87,6 @@ export async function updateUserProfile(formData: FormData) {
   const gender = formData.get("gender") as string;
   const dietPreference = formData.get("dietPreference") as string;
   const activityLevel = formData.get("activityLevel") as string;
-  const targetCaloriesOverride = formData.get("targetCaloriesOverride") as string;
 
   const dbReady = await isDbAvailable();
 
@@ -116,7 +114,6 @@ export async function updateUserProfile(formData: FormData) {
       gender: updatedGender,
       activityLevel: updatedActivity,
       goal: updatedGoal,
-      overrideCalories: targetCaloriesOverride ? parseInt(targetCaloriesOverride) : undefined,
     });
 
     await prisma!.user.update({
