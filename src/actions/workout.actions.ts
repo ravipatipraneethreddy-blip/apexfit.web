@@ -3,7 +3,6 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
-import { checkAndUnlockBadges } from "./achievements.actions";
 
 async function isDbAvailable(): Promise<boolean> {
   if (!prisma) return false;
@@ -118,19 +117,9 @@ export async function logWorkout(formData: FormData) {
 
   // Trigger achievements
   try {
-    const exercises = JSON.parse(exercisesRaw) as Array<{
-      name: string; sets: number; reps: number; weight: number;
-    }>;
-    const maxWeight = Math.max(...exercises.map((e) => e.weight), 0);
-    const earned = await checkAndUnlockBadges(user.id, {
-      loggedWorkout: true,
-      maxWeightLifted: maxWeight,
-    });
-    if (earned.length > 0) {
-      console.log("[ApexFit] Earned new badges:", earned);
-    }
+    // Achievements are now verified reactively by the Dashboard runMilestoneChecks()
   } catch (err) {
-    console.error("Failed to check badges", err);
+    console.error("Failed to execute post-workout hooks", err);
   }
 
   return { success: true };

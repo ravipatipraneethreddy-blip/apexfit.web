@@ -47,6 +47,7 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
     gender: user.gender || "MALE",
     dietPreference: user.dietPreference || "ANY",
     activityLevel: user.activityLevel || "MODERATE",
+    targetCaloriesOverride: user.targetCalories?.toString() || "",
   });
 
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -355,6 +356,21 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
                   className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition"
                 />
               </div>
+            </div>
+
+            {/* Custom Calories */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Custom Target Calories</label>
+              <input
+                type="number"
+                value={form.targetCaloriesOverride}
+                onChange={(e) => setForm({ ...form, targetCaloriesOverride: e.target.value })}
+                placeholder="e.g. 2500"
+                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Leave blank to let AI calculate your TDEE automatically. If you set this, AI will recalculate perfect macros based on this absolute value.
+              </p>
             </div>
 
             {/* Goal */}
