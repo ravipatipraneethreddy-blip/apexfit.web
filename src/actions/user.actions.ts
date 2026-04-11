@@ -11,7 +11,8 @@ async function isDbAvailable(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return true;
-  } catch {
+  } catch (error) {
+    console.error("isDbAvailable Prisma Connection Error:", error);
     return false;
   }
 }
