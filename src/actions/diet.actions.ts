@@ -62,6 +62,7 @@ export async function logMeal(formData: FormData) {
 
   // Trigger achievements only for actual eaten meals
   if (!isPlanned) {
+    try {
       await checkAndUpdateStreak(user.id);
     } catch (err) {
       console.error("Failed to check streak", err);
