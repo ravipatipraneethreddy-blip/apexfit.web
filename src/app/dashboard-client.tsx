@@ -71,6 +71,7 @@ export default function DashboardClient({
   analysis,
   waterMl = 0,
   weightLogs,
+  newlyUnlocked,
 }: {
   user: any;
   meals: any[];
