@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import WaterTracker from "@/components/water-tracker";
 import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3, Wheat, Droplet, Leaf, Send, Loader2, X } from "lucide-react";
@@ -134,12 +134,12 @@ export default function DashboardClient({
   const [unlockedBadges, setUnlockedBadges] = useState<any[]>([]);
 
   // Trigger achievement overlay
-  useMemo(() => {
+  useEffect(() => {
     if (newlyUnlocked && newlyUnlocked.length > 0 && !showTrophyModal && unlockedBadges.length === 0) {
       setUnlockedBadges(newlyUnlocked);
       setShowTrophyModal(true);
     }
-  }, [newlyUnlocked]);
+  }, [newlyUnlocked, showTrophyModal, unlockedBadges.length]);
 
   return (
     <div className="min-h-[100dvh] p-4 md:p-8 flex items-start justify-center font-sans tracking-tight">
