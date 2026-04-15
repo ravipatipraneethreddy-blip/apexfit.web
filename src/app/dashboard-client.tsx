@@ -68,14 +68,14 @@ export default function DashboardClient({
   user,
   meals,
   workouts,
-  analysis,
+  timezone,
   waterMl = 0,
   weightLogs,
 }: {
   user: any;
   meals: any[];
   workouts: any[];
-  analysis: { adherence: string; insight: string; recommendation: string };
+  timezone: string;
   waterMl?: number;
   weightLogs?: any[];
 }) {
@@ -93,6 +93,17 @@ export default function DashboardClient({
   const targetFiber = 30;
 
   const [weightPeriod, setWeightPeriod] = useState<"1W" | "1M" | "3M">("1M");
+
+  const [coachAnalysis, setCoachAnalysis] = useState<{ adherence: string; insight: string; recommendation: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchAnalysis() {
+      const { getCoachAnalysis } = await import("@/actions/ai.actions");
+      const res = await getCoachAnalysis(timezone);
+      setCoachAnalysis(res);
+    }
+    fetchAnalysis();
+  }, [timezone]);
 
   const [coachQuery, setCoachQuery] = useState("");
   const [coachAnswer, setCoachAnswer] = useState<string | null>(null);
@@ -185,24 +196,33 @@ export default function DashboardClient({
                   LIVE
                 </span>
               </h2>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full uppercase tracking-wider ${analysis.adherence.includes("Over") || analysis.adherence.includes("Low") ? "bg-orange-400/10 text-orange-400" : "bg-emerald-400/10 text-emerald-400"}`}>
-                {analysis.adherence}
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full uppercase tracking-wider ${coachAnalysis?.adherence.includes("Over") || coachAnalysis?.adherence.includes("Low") ? "bg-orange-400/10 text-orange-400" : "bg-emerald-400/10 text-emerald-400"}`}>
+                {coachAnalysis ? coachAnalysis.adherence : "Analyzing..."}
               </span>
             </div>
             
             <div className="flex-1 flex flex-col justify-center gap-4">
-              <div>
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Observation</h3>
-                <p className="text-foreground text-sm font-medium leading-loose">
-                  {analysis.insight}
-                </p>
-              </div>
-              <div className="bg-primary/5 border border-primary/10 p-3 rounded-lg">
-                <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Recommendation</h3>
-                <p className="text-primary/90 text-sm font-semibold">
-                  {analysis.recommendation}
-                </p>
-              </div>
+              {!coachAnalysis ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-6 h-full text-muted-foreground animate-pulse">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <p className="text-sm font-semibold">Coach Apex is reviewing your stats...</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Observation</h3>
+                    <p className="text-foreground text-sm font-medium leading-loose">
+                      {coachAnalysis.insight}
+                    </p>
+                  </div>
+                  <div className="bg-primary/5 border border-primary/10 p-3 rounded-lg">
+                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Recommendation</h3>
+                    <p className="text-primary/90 text-sm font-semibold">
+                      {coachAnalysis.recommendation}
+                    </p>
+                  </div>
+                </>
+              )}
 
               {coachAnswer && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-card border border-border p-3 rounded-lg mt-2">

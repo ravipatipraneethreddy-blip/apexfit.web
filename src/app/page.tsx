@@ -17,10 +17,9 @@ export default async function DashboardPage() {
 
   const timezone = await getUserTimezone();
 
-  const [meals, workouts, analysis, water, progress] = await Promise.all([
+  const [meals, workouts, water, progress] = await Promise.all([
     getTodaysMeals(timezone),
     getRecentWorkouts(),
-    getCoachAnalysis(timezone),
     getTodaysWater(),
     getProgressData(),
   ]);
@@ -30,9 +29,9 @@ export default async function DashboardPage() {
       user={user} 
       meals={meals} 
       workouts={workouts} 
-      analysis={analysis}
       waterMl={water.totalMl}
       weightLogs={progress.weightLogs}
+      timezone={timezone}
     />
   );
 }
