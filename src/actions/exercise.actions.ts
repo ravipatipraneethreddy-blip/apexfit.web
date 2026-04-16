@@ -10,9 +10,12 @@ export async function checkAndSeedExercises() {
       return { success: true, message: "Already seeded", count };
     }
 
+    console.log("[Exercise Seed] No cached exercises found, attempting to seed from API...");
+
     // 2. Fetch from RapidAPI if our DB is empty
     const apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) {
+      console.error("[Exercise Seed] Missing RAPIDAPI_KEY environment variable");
       return { error: "Missing RAPIDAPI_KEY in environment variables." };
     }
 
@@ -27,12 +30,14 @@ export async function checkAndSeedExercises() {
 
     const response = await fetch(url, options);
     if (!response.ok) {
-      return { error: "Failed to fetch from ExerciseDB API." };
+      console.error("[Exercise Seed] API responded with status:", response.status, response.statusText);
+      return { error: `Failed to fetch from ExerciseDB API: ${response.status}` };
     }
 
     const data = await response.json();
     
     if (!Array.isArray(data) || data.length === 0) {
+      console.error("[Exercise Seed] Invalid data received, length:", data?.length);
       return { error: "Invalid data received from ExerciseDB." };
     }
 
@@ -53,6 +58,7 @@ export async function checkAndSeedExercises() {
       skipDuplicates: true,
     });
 
+    console.log("[Exercise Seed] Successfully seeded", insertData.length, "exercises");
     return { success: true, count: insertData.length };
   } catch (err: any) {
     console.error("[Exercise Sync Error]", err);
@@ -64,10 +70,10 @@ export async function getExercises(query: string = "", bodyPart: string = "All",
   try {
     const whereClause: any = {};
     if (query) {
-      whereClause.name = { contains: query.toLowerCase() };
+      whereClause.name = { contains: query.toLowerCase(), mode: "insensitive" };
     }
     if (bodyPart !== "All") {
-      whereClause.bodyPart = { equals: bodyPart.toLowerCase() };
+      whereClause.bodyPart = { equals: bodyPart.toLowerCase(), mode: "insensitive" };
     }
 
     const exercises = await prisma.cachedExercise.findMany({

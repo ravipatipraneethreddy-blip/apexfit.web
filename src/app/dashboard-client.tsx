@@ -454,22 +454,18 @@ export default function DashboardClient({
                   <div className="w-2 h-2 rounded-full bg-emerald-400" title="Active" />
                 )}
               </Link>
+            </div>
+          </motion.div>
 
-              <Link
-                href="/progress"
-                className="w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-background rounded-full group-hover:bg-primary/20 transition text-emerald-400">
-                    <TrendingUp className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-medium text-sm block">View Progress</span>
-                    <span className="text-[10px] text-muted-foreground">Charts & analytics</span>
-                  </div>
-                </div>
-              </Link>
-
+          {/* Explore Section */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="glass-panel rounded-2xl p-6 flex flex-col"
+          >
+            <h3 className="text-lg font-semibold tracking-tight mb-4">Explore</h3>
+            <div className="space-y-4 flex-1">
               <Link
                 href="/bodyfat"
                 className="w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition flex items-center justify-between group"
@@ -499,6 +495,7 @@ export default function DashboardClient({
                   </div>
                 </div>
               </Link>
+
               <Link
                 href="/exercises"
                 className="w-full text-left px-4 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition flex items-center justify-between group"

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Search, Dumbbell, Target, Info } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/lib/use-debounce";
 import { getExercises } from "@/actions/exercise.actions";
 
@@ -21,17 +21,22 @@ export default function ExerciseLibraryClient({
   const [activeBodyPart, setActiveBodyPart] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
+  const isFirstRender = useRef(true);
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => {
+    // Skip first render — we already have server-provided initialExercises
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     async function fetchFiltered() {
       setIsLoading(true);
       const res = await getExercises(debouncedSearch, activeBodyPart, 100);
       setExercises(res);
       setIsLoading(false);
     }
-    // Only fetch if it's different from the initial load
     fetchFiltered();
   }, [debouncedSearch, activeBodyPart]);
 
