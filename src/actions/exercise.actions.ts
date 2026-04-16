@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { FALLBACK_EXERCISES } from "@/data/fallback-exercises";
 
 export async function checkAndSeedExercises() {
   try {
@@ -12,47 +13,51 @@ export async function checkAndSeedExercises() {
 
     console.log("[Exercise Seed] No cached exercises found, attempting to seed from API...");
 
-    // 2. Fetch from RapidAPI if our DB is empty
+    // 2. Try fetching from RapidAPI first
+    let insertData: typeof FALLBACK_EXERCISES | null = null;
+
     const apiKey = process.env.RAPIDAPI_KEY;
-    if (!apiKey) {
-      console.error("[Exercise Seed] Missing RAPIDAPI_KEY environment variable");
-      return { error: "Missing RAPIDAPI_KEY in environment variables." };
+    if (apiKey) {
+      try {
+        const url = "https://exercisedb.p.rapidapi.com/exercises?limit=100&offset=0";
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "X-RapidAPI-Key": apiKey,
+            "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            insertData = data.map((ex: any) => ({
+              id: ex.id,
+              name: ex.name,
+              bodyPart: ex.bodyPart,
+              target: ex.target,
+              equipment: ex.equipment,
+              gifUrl: ex.gifUrl,
+              instructions: ex.instructions || [],
+              secondaryMuscles: ex.secondaryMuscles || [],
+            }));
+            console.log("[Exercise Seed] Fetched", insertData!.length, "exercises from API");
+          }
+        } else {
+          console.warn("[Exercise Seed] API responded with status:", response.status);
+        }
+      } catch (apiErr) {
+        console.warn("[Exercise Seed] API fetch failed, will use fallback:", apiErr);
+      }
     }
 
-    const url = "https://exercisedb.p.rapidapi.com/exercises?limit=100&offset=0";
-    const options = {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": apiKey,
-        "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
-      },
-    };
-
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      console.error("[Exercise Seed] API responded with status:", response.status, response.statusText);
-      return { error: `Failed to fetch from ExerciseDB API: ${response.status}` };
+    // 3. Fall back to built-in exercises if API didn't work
+    if (!insertData || insertData.length === 0) {
+      console.log("[Exercise Seed] Using built-in fallback exercises...");
+      insertData = FALLBACK_EXERCISES;
     }
 
-    const data = await response.json();
-    
-    if (!Array.isArray(data) || data.length === 0) {
-      console.error("[Exercise Seed] Invalid data received, length:", data?.length);
-      return { error: "Invalid data received from ExerciseDB." };
-    }
-
-    // 3. Save into our local DB cache using createMany
-    const insertData = data.map((ex: any) => ({
-      id: ex.id,
-      name: ex.name,
-      bodyPart: ex.bodyPart,
-      target: ex.target,
-      equipment: ex.equipment,
-      gifUrl: ex.gifUrl,
-      instructions: ex.instructions || [],
-      secondaryMuscles: ex.secondaryMuscles || [],
-    }));
-
+    // 4. Save into DB cache
     await prisma.cachedExercise.createMany({
       data: insertData,
       skipDuplicates: true,
