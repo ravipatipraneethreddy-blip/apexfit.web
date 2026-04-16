@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import WaterTracker from "@/components/water-tracker";
 import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3, Wheat, Droplet, Leaf, Send, Loader2 } from "lucide-react";
