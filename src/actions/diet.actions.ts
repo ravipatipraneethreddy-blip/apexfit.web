@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore, unstable_cache } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
 import { isDbAvailable } from "./auth.actions";
 import { checkAndUnlockBadges } from "./achievements.actions";
@@ -94,6 +94,7 @@ export async function deleteMeal(mealId: string) {
 }
 
 export async function getTodaysMeals(timezone: string = "Asia/Kolkata") {
+  noStore();
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -123,6 +124,7 @@ export async function getTodaysMeals(timezone: string = "Asia/Kolkata") {
 }
 
 export async function getWeeklyMeals(timezone: string = "Asia/Kolkata") {
+  noStore();
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -150,7 +152,7 @@ export async function getWeeklyMeals(timezone: string = "Asia/Kolkata") {
   }
 }
 
-export async function getWeeklyNutritionSummary(timezone: string = "Asia/Kolkata") {
+const getWeeklyNutritionSummaryInternal = async (timezone: string = "Asia/Kolkata") => {
   const now = new Date();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -221,10 +223,17 @@ export async function getWeeklyNutritionSummary(timezone: string = "Asia/Kolkata
   } catch {
     return emptyData;
   }
-}
+};
+
+export const getWeeklyNutritionSummary = unstable_cache(
+  getWeeklyNutritionSummaryInternal,
+  ["weekly-nutrition"],
+  { revalidate: 120 }
+);
 
 // ─── Recent Foods (for Quick Add "Recent" tab) ───────────────────
 export async function getRecentFoods(): Promise<{ foodName: string; calories: number; protein: number; carbs: number; fats: number; fiber: number }[]> {
+  noStore();
   try {
     const user = await getUserProfile();
     if (!user) return [];
@@ -255,7 +264,7 @@ export async function getRecentFoods(): Promise<{ foodName: string; calories: nu
 }
 
 // ─── Nutrition Report (for /reports page) ────────────────────────
-export async function getNutritionReport(days: 7 | 30 = 7, timezone: string = "Asia/Kolkata") {
+const getNutritionReportInternal = async (days: 7 | 30 = 7, timezone: string = "Asia/Kolkata") => {
   try {
     const user = await getUserProfile();
     if (!user) return null;
@@ -339,7 +348,12 @@ export async function getNutritionReport(days: 7 | 30 = 7, timezone: string = "A
       targetCalories: targetCals,
     };
   } catch (err) {
-    console.error("[ApexFit] Nutrition report error:", err);
     return null;
   }
-}
+};
+
+export const getNutritionReport = unstable_cache(
+  getNutritionReportInternal,
+  ["nutrition-report-long"],
+  { revalidate: 120 }
+);

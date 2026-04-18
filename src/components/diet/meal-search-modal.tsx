@@ -24,7 +24,17 @@ function SourceBadge({ source }: { source: string }) {
   );
 }
 
-export function MealSearchModal({ isFutureDate, selectedDateStr, recentFoods = [] }: { isFutureDate: boolean; selectedDateStr: string; recentFoods?: any[] }) {
+export function MealSearchModal({
+  isFutureDate,
+  selectedDateStr,
+  recentFoods = [],
+  onOptimisticLog,
+}: {
+  isFutureDate: boolean;
+  selectedDateStr: string;
+  recentFoods?: any[];
+  onOptimisticLog?: (meal: any) => void;
+}) {
   const router = useRouter();
   
   const [searchInput, setSearchInput] = useState("");
@@ -165,11 +175,24 @@ export function MealSearchModal({ isFutureDate, selectedDateStr, recentFoods = [
     formData.append("planned", isFutureDate ? "true" : "false");
     formData.append("date", selectedDateStr);
     try {
+      const mealPayload = {
+        id: "optimistic-" + Date.now(),
+        foodName: lookupResult.foodName,
+        calories: Number(formData.get("calories")),
+        protein: Number(formData.get("protein")),
+        carbs: Number(formData.get("carbs")),
+        fats: Number(formData.get("fats")),
+        fiber: Number(formData.get("fiber")),
+        pending: true,
+      };
+
+      if (onOptimisticLog) onOptimisticLog(mealPayload);
+
       await logMeal(formData);
       setLookupResult(null);
       setSearchInput("");
       setIsEditing(false);
-      router.refresh(); // Needed to re-fetch Server Component meal list since logMeal calls revalidatePath
+      // Wait for cache to clear
     } catch (err) {
       console.error(err);
     }

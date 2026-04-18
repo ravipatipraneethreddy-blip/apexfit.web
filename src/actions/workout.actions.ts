@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
 import { checkAndUnlockBadges } from "./achievements.actions";
 
@@ -16,6 +16,7 @@ async function isDbAvailable(): Promise<boolean> {
 }
 
 export async function getWorkoutTemplates() {
+  noStore();
   const user = await getUserProfile();
   if (!user) return [];
   const dbReady = await isDbAvailable();
@@ -137,6 +138,7 @@ export async function logWorkout(formData: FormData) {
 }
 
 export async function getRecentWorkouts() {
+  noStore();
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {

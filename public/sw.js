@@ -81,15 +81,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Pages & Next.js RSC fetches: Stale-while-revalidate
+  // Next.js RSC fetches & mutations: Network-first to prevent stale data pop-ins
+  if (
+    url.searchParams.has("_rsc") ||
+    event.request.method !== "GET"
+  ) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return new Response("Offline", { status: 503 });
+      })
+    );
+    return;
+  }
+
+  // Standard Pages: Stale-while-revalidate for fast structural load
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      // Background fetch with timeout
       const fetchPromise = new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => reject(new Error('Network timeout')), 3000);
+        const timeoutId = setTimeout(() => reject(new Error('Network timeout')), 4000);
         fetch(event.request).then(response => {
           clearTimeout(timeoutId);
-          if (response.ok && url.origin === self.location.origin) {
+          if (response.ok && url.origin === self.location.origin && event.request.method === "GET") {
             const clone = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
@@ -99,7 +111,6 @@ self.addEventListener('fetch', (event) => {
           reject(err);
         });
       }).catch(() => {
-        // network failed or timed out
         if (!cached) {
           if (event.request.mode === 'navigate') return caches.match('/');
           return new Response('Offline', { status: 503 });

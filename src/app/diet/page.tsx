@@ -6,9 +6,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { DateNavigator } from "@/components/diet/date-navigator";
-import { DietMacroRings } from "@/components/diet/diet-macro-rings";
-import { MealSearchModal } from "@/components/diet/meal-search-modal";
-import { MealList } from "@/components/diet/meal-list";
+import { DietTrackerClient } from "@/components/diet/diet-tracker-client";
 
 export default async function DietPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await getUserProfile();
@@ -56,14 +54,14 @@ export default async function DietPage({ searchParams }: { searchParams: Promise
         {/* Date Navigator - Client Component */}
         <DateNavigator initialDate={dateStr} />
 
-        {/* Macro Rings - Server Rendered */}
-        <DietMacroRings meals={selectedDateMeals} user={user} />
-
-        {/* Search Modal & Quick Actions - Client Component */}
-        <MealSearchModal isFutureDate={isFutureDate} selectedDateStr={targetDate.toISOString()} recentFoods={recentFoods} />
-
-        {/* Logged Meals List - Server Rendered */}
-        <MealList meals={selectedDateMeals} isFutureDate={isFutureDate} />
+        {/* Client orchestrator to maintain instant optimistic UI updates on forms while preserving RSC initialization */}
+        <DietTrackerClient
+          initialMeals={selectedDateMeals}
+          user={user}
+          isFutureDate={isFutureDate}
+          targetDateStr={targetDate.toISOString()}
+          recentFoods={recentFoods}
+        />
       </div>
     </div>
   );

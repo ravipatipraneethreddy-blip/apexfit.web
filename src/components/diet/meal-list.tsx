@@ -16,7 +16,7 @@ export function MealList({ meals, isFutureDate }: { meals: any[]; isFutureDate: 
         meals.map((item, i) => (
           <div
             key={item.id || i}
-            className="glass-panel p-4 rounded-2xl flex justify-between items-center group transition"
+            className={`glass-panel p-4 rounded-2xl flex justify-between items-center group transition ${item.pending ? 'opacity-50 blur-[0.5px] scale-[0.98]' : ''}`}
           >
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{item.foodName}</p>

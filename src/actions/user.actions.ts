@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { calculateTDEE } from "@/lib/tdee";
 
@@ -143,6 +143,7 @@ export async function updateUserProfile(formData: FormData) {
 }
 
 export async function getUserProfile() {
+  noStore();
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
