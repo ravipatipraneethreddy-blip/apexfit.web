@@ -1,45 +1,20 @@
 {
   "name": "ApexFit",
-  "short_name": "ApexFit",
-  "description": "AI-Powered Fitness & Nutrition Coach",
+  "short_name": "Apex",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#090a0f",
-  "theme_color": "#00e5ff",
-  "orientation": "portrait",
-  "categories": ["health", "fitness", "lifestyle"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Log Meal",
-      "short_name": "Diet",
-      "url": "/diet",
-      "description": "Log food and track calories"
-    },
-    {
-      "name": "Start Workout",
-      "short_name": "Workout",
-      "url": "/workout",
-      "description": "Start a workout session"
-    },
-    {
-      "name": "Reports",
-      "short_name": "Reports",
-      "url": "/reports",
-      "description": "View nutrition analytics"
+      "type": "image/png"
     }
   ]
 }

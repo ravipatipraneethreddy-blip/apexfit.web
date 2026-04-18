@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   title: "ApexFit | AI Personal Coach",
   description: "Your dynamic AI-powered fitness and nutrition coach.",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black",
+    title: "ApexFit",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
