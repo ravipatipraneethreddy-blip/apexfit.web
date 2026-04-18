@@ -64,7 +64,6 @@ export default function WaterTracker({ initialMl = 0 }: { initialMl?: number }) 
     setTotalMl((prev) => prev + ml);
     try {
       await logWater(ml);
-      router.refresh();
     } catch (e) {
       console.error(e);
       setTotalMl((prev) => prev - ml);

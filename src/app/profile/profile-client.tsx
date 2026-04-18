@@ -82,7 +82,6 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
       await updateUserProfile(formData);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      router.refresh();
     } catch (e) {
       console.error(e);
     }

@@ -1,14 +1,46 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import WaterTracker from "@/components/water-tracker";
 import { Activity, Flame, Dumbbell, TrendingUp, ChevronUp, BrainCircuit, UserCircle, Trophy, Calculator, BarChart3, Wheat, Droplet, Leaf, Send, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { askCoachQuestion } from "@/actions/ai.actions";
-import {
-  AreaChart, Area, ResponsiveContainer, Tooltip, XAxis,
-} from "recharts";
+
+// Lazy-load recharts — ~120KB gzipped, only needed for the chart section
+const LazyRecharts = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data, tooltipComponent }: { data: any[]; tooltipComponent: React.ReactNode }) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#00e5ff" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#00e5ff" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <mod.XAxis
+            dataKey="name"
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <mod.Tooltip content={tooltipComponent} />
+          <mod.Area
+            type="monotone"
+            dataKey="weight"
+            name="Weight"
+            stroke="#00e5ff"
+            strokeWidth={2}
+            fill="url(#dashGrad)"
+            dot={false}
+            activeDot={{ r: 5, fill: "#00e5ff", stroke: "#090a0f", strokeWidth: 2 }}
+          />
+        </mod.AreaChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -368,33 +400,9 @@ export default function DashboardClient({
               </div>
             </div>
             <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                  <defs>
-                    <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00e5ff" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#00e5ff" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="weight"
-                    name="Weight"
-                    stroke="#00e5ff"
-                    strokeWidth={2}
-                    fill="url(#dashGrad)"
-                    dot={false}
-                    activeDot={{ r: 5, fill: "#00e5ff", stroke: "#090a0f", strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="w-full h-full bg-secondary/30 rounded-xl animate-pulse" />}>
+                <LazyRecharts data={chartData} tooltipComponent={<CustomTooltip />} />
+              </Suspense>
             </div>
             {/* Weight indicator */}
             <div className="flex items-center justify-end gap-2 mt-2">

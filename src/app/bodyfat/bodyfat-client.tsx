@@ -1,14 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Calculator, Save, Loader2, TrendingDown, Activity, Info } from "lucide-react";
 import Link from "next/link";
 import { calculateBodyFat, saveBodyFatResult } from "@/actions/bodyfat.actions";
 import { useToast } from "@/components/toast";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from "recharts";
+
+// Lazy-load recharts for history chart
+const LazyHistoryChart = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data, tooltipContent }: { data: any[]; tooltipContent: React.ReactNode }) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+          <defs>
+            <linearGradient id="bfGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <mod.XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+          <mod.YAxis domain={["dataMin - 2", "dataMax + 2"]} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+          <mod.Tooltip content={tooltipContent} />
+          <mod.Area
+            type="monotone" dataKey="bodyFatPct" name="Body Fat" stroke="#a855f7" strokeWidth={2.5}
+            fill="url(#bfGrad)" dot={{ fill: "#a855f7", r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: "#a855f7", stroke: "#090a0f", strokeWidth: 2 }}
+          />
+        </mod.AreaChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -441,39 +464,9 @@ export default function BodyFatClient({
               <span className="text-xs text-muted-foreground">{history.length} readings</span>
             </div>
             <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={history} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-                  <defs>
-                    <linearGradient id="bfGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    domain={["dataMin - 2", "dataMax + 2"]}
-                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="bodyFatPct"
-                    name="Body Fat"
-                    stroke="#a855f7"
-                    strokeWidth={2.5}
-                    fill="url(#bfGrad)"
-                    dot={{ fill: "#a855f7", r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: "#a855f7", stroke: "#090a0f", strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="w-full h-full bg-secondary/30 rounded-xl animate-pulse" />}>
+                <LazyHistoryChart data={history} tooltipContent={<CustomTooltip />} />
+              </Suspense>
             </div>
 
             {/* History Table */}

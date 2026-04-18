@@ -3,14 +3,61 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, TrendingUp, TrendingDown, Scale, Target, Plus, Loader2, Camera, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { logWeight } from "@/actions/progress.actions";
 import { useToast } from "@/components/toast";
-import confetti from "canvas-confetti";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, CartesianGrid, Legend
-} from "recharts";
+
+// Lazy-load confetti — only fires on successful weight log
+const fireConfetti = () => import("canvas-confetti").then((mod) =>
+  mod.default({
+    particleCount: 50,
+    spread: 60,
+    colors: ["#a855f7", "#c084fc", "#e879f9"],
+    origin: { y: 0.8 }
+  })
+);
+
+// Lazy-load recharts for weight chart
+const LazyWeightChart = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data, tooltipContent }: any) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
+              <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <mod.XAxis dataKey="date" stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
+          <mod.YAxis domain={['dataMin - 1', 'dataMax + 1']} stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
+          <mod.Tooltip content={tooltipContent} />
+          <mod.Area type="monotone" dataKey="Weight" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorWeight)" />
+        </mod.AreaChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
+
+// Lazy-load recharts for macro chart
+const LazyMacroChart = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data, tooltipContent }: any) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.BarChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+          <mod.CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+          <mod.XAxis dataKey="date" stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
+          <mod.YAxis stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
+          <mod.Tooltip content={tooltipContent} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+          <mod.Legend className="text-xs mt-2" />
+          <mod.Bar dataKey="Protein" stackId="a" fill="#60a5fa" radius={[0, 0, 4, 4]} />
+          <mod.Bar dataKey="Carbs" stackId="a" fill="#f97316" />
+          <mod.Bar dataKey="Fats" stackId="a" fill="#34d399" radius={[4, 4, 0, 0]} />
+        </mod.BarChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -90,12 +137,7 @@ export default function ProgressClient({ user, weightLogs, macroLogs }: { user: 
         if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
           window.navigator.vibrate(200);
         }
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          colors: ["#a855f7", "#c084fc", "#e879f9"],
-          origin: { y: 0.8 }
-        });
+        fireConfetti();
       }
     } catch (err) {
       toast("Something went wrong.", "error");
@@ -196,20 +238,9 @@ export default function ProgressClient({ user, weightLogs, macroLogs }: { user: 
           </div>
 
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={finalWeightLogs} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
-                <YAxis domain={['dataMin - 1', 'dataMax + 1']} stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="Weight" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorWeight)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="w-full h-full bg-secondary/30 rounded-xl animate-pulse" />}>
+              <LazyWeightChart data={finalWeightLogs} tooltipContent={<CustomTooltip />} />
+            </Suspense>
           </div>
         </motion.div>
 
@@ -231,18 +262,9 @@ export default function ProgressClient({ user, weightLogs, macroLogs }: { user: 
           </div>
 
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={renderMacroLogs} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="date" stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
-                <YAxis stroke="currentColor" fontSize={10} className="text-muted-foreground opacity-50" tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                <Legend className="text-xs mt-2" />
-                <Bar dataKey="Protein" stackId="a" fill="#60a5fa" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="Carbs" stackId="a" fill="#f97316" />
-                <Bar dataKey="Fats" stackId="a" fill="#34d399" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="w-full h-full bg-secondary/30 rounded-xl animate-pulse" />}>
+              <LazyMacroChart data={renderMacroLogs} tooltipContent={<CustomTooltip />} />
+            </Suspense>
           </div>
         </motion.div>
 

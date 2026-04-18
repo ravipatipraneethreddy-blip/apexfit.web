@@ -67,6 +67,11 @@ function SourceBadge({ source }: { source: string }) {
 
 export default function DietClient({ user, meals, recentFoods = [] }: { user: any; meals: any[]; recentFoods?: any[] }) {
   const router = useRouter();
+  const [localMeals, setLocalMeals] = useState(meals);
+
+  useEffect(() => {
+    setLocalMeals(meals);
+  }, [meals]);
   const [searchInput, setSearchInput] = useState("");
   const [isLooking, setIsLooking] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
@@ -249,7 +254,7 @@ export default function DietClient({ user, meals, recentFoods = [] }: { user: an
   const TARGET_FAT = user.targetFats || 65;
   const TARGET_FIBER = 30; // Standard recommended daily fiber intake
 
-  const filteredMeals = meals.filter((m) => new Date(m.date).toDateString() === selectedDate.toDateString());
+  const filteredMeals = localMeals.filter((m) => new Date(m.date).toDateString() === selectedDate.toDateString());
 
   const eatenCals = r1(filteredMeals.reduce((sum: number, m: any) => sum + m.calories, 0));
   const eatenPro = r1(filteredMeals.reduce((sum: number, m: any) => sum + m.protein, 0));
@@ -381,24 +386,42 @@ export default function DietClient({ user, meals, recentFoods = [] }: { user: an
     formData.append("planned", isFutureDate ? "true" : "false");
     formData.append("date", selectedDate.toISOString());
     try {
+      const isPlanned = isFutureDate ? true : false;
+      const tmpMeal = {
+        id: "temp-" + Date.now(),
+        foodName: lookupResult.foodName,
+        calories: Number(isEditing ? editValues.calories : lookupResult.calories),
+        protein: Number(isEditing ? editValues.protein : lookupResult.protein),
+        carbs: Number(isEditing ? editValues.carbs : lookupResult.carbs),
+        fats: Number(isEditing ? editValues.fats : lookupResult.fats),
+        fiber: Number(isEditing ? editValues.fiber : lookupResult.fiber),
+        planned: isPlanned,
+        date: selectedDate.toISOString(),
+      };
+      setLocalMeals(prev => [tmpMeal, ...prev]);
+
       await logMeal(formData);
       setLookupResult(null);
       setSearchInput("");
       setIsEditing(false);
-      router.refresh();
+      // router.refresh(); // Removed for optimistic UI
     } catch (err) {
       console.error(err);
+      setLocalMeals(prev => prev.filter(m => m.id !== tmpMeal.id)); // revert
     }
     setIsLogging(false);
   };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
+    const deletedMeal = localMeals.find(m => m.id === id);
     try {
+      setLocalMeals(prev => prev.filter(m => m.id !== id));
       await deleteMeal(id);
-      router.refresh();
+      // router.refresh(); // Removed for optimistic UI
     } catch (err) {
       console.error(err);
+      if (deletedMeal) setLocalMeals(prev => [...prev, deletedMeal]); // revert
     }
     setDeletingId(null);
   };

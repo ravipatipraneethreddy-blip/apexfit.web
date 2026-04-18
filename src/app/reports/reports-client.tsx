@@ -1,15 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Flame, Drumstick, Wheat, Droplets, TrendingUp, Target, Award, Utensils } from "lucide-react";
 import Link from "next/link";
-import {
-  AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
-  PieChart, Pie, Cell, BarChart, Bar,
-} from "recharts";
 
-const COLORS = ["#60a5fa", "#f97316", "#34d399", "#a78bfa"];
+const ChartPlaceholder = () => <div className="w-full h-full bg-secondary/30 rounded-xl animate-pulse" />;
+
+// Lazy-load chart components
+const LazyCalorieTrend = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data, period, targetCalories, tooltipContent }: any) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.AreaChart data={data}>
+          <defs>
+            <linearGradient id="calGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#00e5ff" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="#00e5ff" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <mod.CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+          <mod.XAxis dataKey={period === "week" ? "day" : "shortDate"} tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} />
+          <mod.YAxis tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={35} />
+          <mod.Tooltip content={tooltipContent} />
+          <mod.Area type="monotone" dataKey="calories" stroke="#00e5ff" fill="url(#calGrad)" strokeWidth={2} dot={{ r: 3, fill: "#00e5ff" }} />
+          <mod.Area type="monotone" dataKey={() => targetCalories} stroke="#ff4444" strokeDasharray="5 5" fill="none" strokeWidth={1} />
+        </mod.AreaChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
+
+const LazyMacroPie = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data }: { data: { name: string; value: number; color: string }[] }) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.PieChart>
+          <mod.Pie data={data} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value" strokeWidth={0}>
+            {data.map((entry, i) => (
+              <mod.Cell key={i} fill={entry.color} />
+            ))}
+          </mod.Pie>
+        </mod.PieChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
+
+const LazyProteinBar = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: ({ data, period, tooltipContent }: any) => (
+      <mod.ResponsiveContainer width="100%" height="100%">
+        <mod.BarChart data={data}>
+          <mod.CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+          <mod.XAxis dataKey={period === "week" ? "day" : "shortDate"} tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} />
+          <mod.YAxis tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={30} />
+          <mod.Tooltip content={tooltipContent} />
+          <mod.Bar dataKey="protein" fill="#60a5fa" radius={[4, 4, 0, 0]} />
+        </mod.BarChart>
+      </mod.ResponsiveContainer>
+    ),
+  }))
+);
 
 function StatCard({ label, value, unit, icon: Icon, color }: { label: string; value: number | string; unit?: string; icon: any; color: string }) {
   return (
@@ -115,23 +167,9 @@ export default function ReportsClient({ user, weeklyReport, monthlyReport }: { u
             Calorie Trend
           </h3>
           <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={report.dailyData}>
-                <defs>
-                  <linearGradient id="calGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00e5ff" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#00e5ff" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey={period === "week" ? "day" : "shortDate"} tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={35} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="calories" stroke="#00e5ff" fill="url(#calGrad)" strokeWidth={2} dot={{ r: 3, fill: "#00e5ff" }} />
-                {/* Target line */}
-                <Area type="monotone" dataKey={() => report.targetCalories} stroke="#ff4444" strokeDasharray="5 5" fill="none" strokeWidth={1} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<ChartPlaceholder />}>
+              <LazyCalorieTrend data={report.dailyData} period={period} targetCalories={report.targetCalories} tooltipContent={<CustomTooltip />} />
+            </Suspense>
           </div>
           <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-primary inline-block rounded" /> Calories</span>
@@ -151,22 +189,9 @@ export default function ReportsClient({ user, weeklyReport, monthlyReport }: { u
           </h3>
           <div className="flex items-center gap-4">
             <div className="w-[120px] h-[120px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={macroData}
-                    cx="50%" cy="50%"
-                    innerRadius={35} outerRadius={55}
-                    paddingAngle={3}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {macroData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<ChartPlaceholder />}>
+                <LazyMacroPie data={macroData} />
+              </Suspense>
             </div>
             <div className="flex-1 space-y-2">
               {macroData.map((m) => (
@@ -193,15 +218,9 @@ export default function ReportsClient({ user, weeklyReport, monthlyReport }: { u
             Daily Protein
           </h3>
           <div className="h-[150px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={report.dailyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey={period === "week" ? "day" : "shortDate"} tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={30} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="protein" fill="#60a5fa" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<ChartPlaceholder />}>
+              <LazyProteinBar data={report.dailyData} period={period} tooltipContent={<CustomTooltip />} />
+            </Suspense>
           </div>
         </motion.div>
 

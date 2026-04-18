@@ -3,18 +3,19 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Trophy, Flame, Medal } from "lucide-react";
 import Link from "next/link";
-import confetti from "canvas-confetti";
 import { useEffect } from "react";
 
 export default function SocialClient({ leaderboard }: { leaderboard: any[] }) {
   
   useEffect(() => {
-    // Only fire confetti if the user is #1, but let's just fire it for fun on load for the demo
-    confetti({
-      particleCount: 50,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ["#fbbf24", "#f59e0b", "#d97706"]
+    // Dynamically import confetti — decorative, no need to block initial render
+    import("canvas-confetti").then((mod) => {
+      mod.default({
+        particleCount: 50,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#fbbf24", "#f59e0b", "#d97706"]
+      });
     });
   }, []);
 

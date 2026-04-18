@@ -6,7 +6,6 @@ import { ArrowLeft, Plus, Trash2, Check, Loader2, Dumbbell, ChevronDown, Timer a
 import Link from "next/link";
 import { logWorkout, saveWorkoutTemplate, deleteWorkoutTemplate } from "@/actions/workout.actions";
 import { useRouter } from "next/navigation";
-import confetti from "canvas-confetti";
 import ExerciseAutocomplete from "@/components/exercise-autocomplete";
 import { useToast } from "@/components/toast";
 
@@ -30,32 +29,35 @@ type ExerciseEntry = {
 
 type PreviousData = Record<string, { weight: number; reps: number; sets: number }>;
 
-// ─── Confetti Burst ───
+// ─── Confetti Burst (lazy-loaded) ───
 function fireCelebration() {
-  const duration = 2000;
-  const end = Date.now() + duration;
+  import("canvas-confetti").then((mod) => {
+    const confetti = mod.default;
+    const duration = 2000;
+    const end = Date.now() + duration;
 
-  const frame = () => {
-    confetti({
-      particleCount: 3,
-      angle: 60,
-      spread: 55,
-      origin: { x: 0, y: 0.7 },
-      colors: ["#00e5ff", "#22d3ee", "#34d399", "#fbbf24"],
-    });
-    confetti({
-      particleCount: 3,
-      angle: 120,
-      spread: 55,
-      origin: { x: 1, y: 0.7 },
-      colors: ["#00e5ff", "#22d3ee", "#34d399", "#fbbf24"],
-    });
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ["#00e5ff", "#22d3ee", "#34d399", "#fbbf24"],
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ["#00e5ff", "#22d3ee", "#34d399", "#fbbf24"],
+      });
 
-    if (Date.now() < end) {
-      requestAnimationFrame(frame);
-    }
-  };
-  frame();
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+  });
 }
 
 // ─── Rest Timer Component ───
