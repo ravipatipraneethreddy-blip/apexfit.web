@@ -19,10 +19,14 @@ export default async function DietPage({ searchParams }: { searchParams: Promise
   const timezone = await getUserTimezone();
   
   const params = await searchParams;
-  const dateStr = params.date || new Date().toISOString().substring(0, 10);
+  
+  // Use the timezone aware date string so it doesn't default to yesterday/tomorrow
+  const now = new Date();
+  const localTodayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
+  
+  const dateStr = params.date || localTodayStr;
   const targetDate = new Date(dateStr);
-  const todayStr = new Date().toISOString().substring(0, 10);
-  const isFutureDate = dateStr > todayStr;
+  const isFutureDate = dateStr > localTodayStr;
 
   // We still fetch weekly meals so other logic can exist, but ideally we fetch just the requested date
   const [weeklyMeals, recentFoods] = await Promise.all([
