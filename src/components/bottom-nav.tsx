@@ -35,6 +35,7 @@ export default function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className="relative flex flex-col items-center gap-0.5 py-2 px-3 min-w-[56px] group"
               >
                 {/* Active indicator glow */}

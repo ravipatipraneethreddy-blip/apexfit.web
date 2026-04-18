@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-/* Hide html5-qrcode watermark */
+html, body {
+  background-color: #000000;
+}/* Hide html5-qrcode watermark */
 #html5-qrcode-anchor-scan-type-change { display: none !important; }
 
 :root {

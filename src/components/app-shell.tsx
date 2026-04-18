@@ -6,6 +6,8 @@ import BottomNav from "./bottom-nav";
 
 const HIDDEN_NAV_PATHS = ["/onboarding", "/login", "/register"];
 
+import { OfflineSyncProvider } from "./offline-sync-provider";
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -39,6 +41,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <OfflineSyncProvider />
       <main className={showNav ? "pb-24" : ""}>{children}</main>
       {showNav && <BottomNav />}
     </>

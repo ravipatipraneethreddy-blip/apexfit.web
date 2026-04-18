@@ -6,13 +6,7 @@ import { redirect } from "next/navigation";
 
 // Helper: test if DB is actually reachable
 export async function isDbAvailable(): Promise<boolean> {
-  if (!prisma) return false;
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 export async function registerUser(formData: FormData) {

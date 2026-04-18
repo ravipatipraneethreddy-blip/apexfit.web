@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black",
     title: "ApexFit",
+    startupImage: [
+      "/icons/icon-512.png"
+    ]
   },
   icons: {
     icon: "/icons/icon-192.png",

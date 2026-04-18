@@ -1,19 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath, unstable_noStore as noStore } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { calculateTDEE } from "@/lib/tdee";
 
 // Helper: test if DB is actually reachable
 async function isDbAvailable(): Promise<boolean> {
-  if (!prisma) return false;
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 
@@ -142,8 +136,9 @@ export async function updateUserProfile(formData: FormData) {
   return { success: true };
 }
 
-export async function getUserProfile() {
-  noStore();
+import { cache } from "react";
+
+export const getUserProfile = cache(async () => {
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -161,7 +156,7 @@ export async function getUserProfile() {
   } catch {
     return null;
   }
-}
+});
 
 export async function getUserStats() {
   const dbReady = await isDbAvailable();

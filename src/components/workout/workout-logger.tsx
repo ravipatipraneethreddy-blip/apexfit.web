@@ -296,7 +296,29 @@ export default function WorkoutLoggerClient({
         };
       });
       formData.append("exercises", JSON.stringify(payload));
-      await logWorkout(formData);
+      try {
+        if (!navigator.onLine) throw new Error("Offline");
+        await logWorkout(formData);
+      } catch (err) {
+        if (!navigator.onLine || String(err).includes("Failed to fetch") || String(err).includes("Offline")) {
+          const queue = JSON.parse(localStorage.getItem("apexfit-offline-queue") || "[]");
+          const wId = "workout-optimistic-" + Date.now();
+          const existingIndex = queue.findIndex((q: any) => q.id === wId);
+          const queueItem = {
+            id: wId,
+            timestamp: Date.now(),
+            type: "WORKOUT",
+            formDataObj: Object.fromEntries(formData),
+            status: "PENDING",
+            retryCount: 0
+          };
+          if (existingIndex === -1) queue.push(queueItem);
+          const trimmed = queue.slice(-30);
+          localStorage.setItem("apexfit-offline-queue", JSON.stringify(trimmed));
+        } else {
+          throw err;
+        }
+      }
 
       toast("Workout logged successfully! Great job.", "success");
 

@@ -5,13 +5,7 @@ import { getUserProfile } from "./user.actions";
 import { revalidatePath } from "next/cache";
 
 async function isDbAvailable(): Promise<boolean> {
-  if (!prisma) return false;
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 type BodyFatInput = {

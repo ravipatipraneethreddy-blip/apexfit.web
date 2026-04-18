@@ -16,6 +16,8 @@ import { WeightChartWidget } from "@/components/dashboard/weight-chart-widget";
 import WaterTracker from "@/components/water-tracker";
 import { DashboardQuickLinks } from "@/components/dashboard/dashboard-quick-links";
 
+export const revalidate = 5; // Enable ISR for fast passive dashboard parsing
+
 export default async function DashboardPage() {
   const user = await getUserProfile();
   

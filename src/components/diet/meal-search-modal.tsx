@@ -188,11 +188,33 @@ export function MealSearchModal({
 
       if (onOptimisticLog) onOptimisticLog(mealPayload);
 
-      await logMeal(formData);
+      try {
+        if (!navigator.onLine) throw new Error("Offline");
+        await logMeal(formData);
+      } catch (err) {
+        if (!navigator.onLine || String(err).includes("Failed to fetch") || String(err).includes("Offline")) {
+          // Push to offline queue
+          const queue = JSON.parse(localStorage.getItem("apexfit-offline-queue") || "[]");
+          const existingIndex = queue.findIndex((q: any) => q.id === mealPayload.id);
+          const queueItem = {
+            id: mealPayload.id,
+            timestamp: Date.now(),
+            type: "MEAL",
+            formDataObj: Object.fromEntries(formData),
+            status: "PENDING",
+            retryCount: 0
+          };
+          if (existingIndex === -1) queue.push(queueItem);
+          const trimmed = queue.slice(-30);
+          localStorage.setItem("apexfit-offline-queue", JSON.stringify(trimmed));
+        } else {
+          console.error(err);
+        }
+      }
+
       setLookupResult(null);
       setSearchInput("");
       setIsEditing(false);
-      // Wait for cache to clear
     } catch (err) {
       console.error(err);
     }

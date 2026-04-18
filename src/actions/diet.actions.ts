@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath, unstable_noStore as noStore, unstable_cache } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
 import { isDbAvailable } from "./auth.actions";
 import { checkAndUnlockBadges } from "./achievements.actions";
@@ -94,7 +94,6 @@ export async function deleteMeal(mealId: string) {
 }
 
 export async function getTodaysMeals(timezone: string = "Asia/Kolkata") {
-  noStore();
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -124,7 +123,6 @@ export async function getTodaysMeals(timezone: string = "Asia/Kolkata") {
 }
 
 export async function getWeeklyMeals(timezone: string = "Asia/Kolkata") {
-  noStore();
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -233,7 +231,6 @@ export const getWeeklyNutritionSummary = unstable_cache(
 
 // ─── Recent Foods (for Quick Add "Recent" tab) ───────────────────
 export async function getRecentFoods(): Promise<{ foodName: string; calories: number; protein: number; carbs: number; fats: number; fiber: number }[]> {
-  noStore();
   try {
     const user = await getUserProfile();
     if (!user) return [];

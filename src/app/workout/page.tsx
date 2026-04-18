@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import WorkoutLoggerClient from "@/components/workout/workout-logger";
 import { WorkoutTemplatesView } from "@/components/workout/workout-templates-view";
 
+export const revalidate = 5;
+
 export default async function WorkoutPage({ searchParams }: { searchParams: Promise<{ template?: string, templateId?: string }> }) {
   const user = await getUserProfile();
   if (!user) {
