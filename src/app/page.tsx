@@ -14,6 +14,7 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { AICoachServer } from "@/components/dashboard/ai-coach-server";
 import { WeightChartWidget } from "@/components/dashboard/weight-chart-widget";
 import WaterTracker from "@/components/water-tracker";
+import StepCounter from "@/components/step-counter";
 import { DashboardQuickLinks } from "@/components/dashboard/dashboard-quick-links";
 
 export const revalidate = 5; // Enable ISR for fast passive dashboard parsing
@@ -56,12 +57,15 @@ export default async function DashboardPage() {
         <DashboardStats user={user} meals={meals} workoutsCount={workouts.length} />
 
         {/* Charts & Interactive Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
           {/* Client Interactive AreaChart */}
           <WeightChartWidget weightLogs={progress.weightLogs} user={user} />
 
           {/* Client Water Tracker */}
           <WaterTracker initialMl={water.totalMl} />
+
+          {/* Client Step Counter */}
+          <StepCounter />
 
           {/* Server Rendered Navigation Links */}
           <DashboardQuickLinks totalCals={totalCals} workoutsCount={workouts.length} />

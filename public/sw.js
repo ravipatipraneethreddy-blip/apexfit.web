@@ -1,4 +1,4 @@
-const CACHE_NAME = 'apexfit-v2';
+const CACHE_NAME = 'apexfit-v3';
 const STATIC_ASSETS = [
   '/',
   '/diet',
@@ -135,32 +135,56 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Standard static pages: Stale-while-revalidate for fast structural load
+  // Standard static pages: Network-first for navigations, SWR for subresources
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => reject(new Error('Network timeout')), 4000);
-        fetch(event.request).then(async response => {
+    (async () => {
+      const isNavigate = event.request.mode === 'navigate';
+
+      // For navigations, try network first to avoid serving stale RSC payloads
+      if (isNavigate) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const response = await fetch(event.request, { signal: controller.signal });
           clearTimeout(timeoutId);
+
           if (response.ok && response.status === 200 && url.origin === self.location.origin) {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(event.request, response.clone());
-            await enforceCacheLimit(cache);
+            const contentType = response.headers.get('content-type') || '';
+            // Only cache actual HTML pages, not RSC payloads
+            if (contentType.includes('text/html')) {
+              const cache = await caches.open(CACHE_NAME);
+              cache.put(event.request, response.clone());
+              await enforceCacheLimit(cache);
+            }
           }
-          resolve(response);
-        }).catch(err => {
-          clearTimeout(timeoutId);
-          reject(err);
-        });
-      }).catch(err => {
-        if (!cached) {
-          if (event.request.mode === 'navigate') return caches.match('/');
+          return response;
+        } catch (err) {
+          // Network failed — try cache, but only serve HTML
+          const cached = await caches.match(event.request);
+          if (cached) {
+            const ct = cached.headers.get('content-type') || '';
+            if (ct.includes('text/html')) return cached;
+          }
+          // Last resort: serve cached root page as app shell
+          const fallback = await caches.match('/');
+          if (fallback) return fallback;
           throw err;
         }
-      });
+      }
+
+      // Non-navigation: stale-while-revalidate
+      const cached = await caches.match(event.request);
+      const fetchPromise = fetch(event.request).then(async response => {
+        if (response.ok && response.status === 200 && url.origin === self.location.origin) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, response.clone());
+          await enforceCacheLimit(cache);
+        }
+        return response;
+      }).catch(() => cached);
 
       return cached || fetchPromise;
-    })
+    })()
   );
 });
 

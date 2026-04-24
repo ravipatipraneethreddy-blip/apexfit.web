@@ -127,4 +127,36 @@ body {
   :root.light .neon-glow {
     box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
   }
+
+  /* Safe area padding for native app (notch, home indicator) */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Step counter ring animation */
+@keyframes step-ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset);
+  }
+}
+
+@keyframes step-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.step-pulse {
+  animation: step-pulse 0.3s ease-out;
 }

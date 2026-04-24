@@ -1,4 +1,5 @@
 import { Activity, Dumbbell, Flame, Droplet, Leaf, TrendingUp, Wheat } from "lucide-react";
+import { StepStatCard } from "./step-stat-card";
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -26,7 +27,7 @@ export function DashboardStats({ user, meals, workoutsCount }: { user: any; meal
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
       {stats.map((stat, i) => (
         <div key={i} className="bg-card rounded-2xl p-4 flex flex-col justify-between border border-border/50 hover:border-border transition-colors">
           <div className="flex items-center justify-between mb-3">
@@ -41,6 +42,8 @@ export function DashboardStats({ user, meals, workoutsCount }: { user: any; meal
           </div>
         </div>
       ))}
+      {/* Client-side step stat card (reads from localStorage) */}
+      <StepStatCard />
     </div>
   );
 }

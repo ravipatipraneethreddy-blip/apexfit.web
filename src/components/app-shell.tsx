@@ -7,6 +7,7 @@ import BottomNav from "./bottom-nav";
 const HIDDEN_NAV_PATHS = ["/onboarding", "/login", "/register"];
 
 import { OfflineSyncProvider } from "./offline-sync-provider";
+import { initNativeUI } from "@/lib/native/native-ui";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,6 +15,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const showNav = !HIDDEN_NAV_PATHS.includes(pathname);
 
   useEffect(() => {
+    // Initialize native UI (splash screen, status bar) when in Capacitor shell
+    initNativeUI();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input or textarea
       if (
