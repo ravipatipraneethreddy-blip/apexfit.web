@@ -59,8 +59,6 @@ export default async function DashboardPage() {
 
         {/* Charts & Interactive Area */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          {/* Client Interactive AreaChart */}
-          <WeightChartWidget weightLogs={progress.weightLogs} user={user} />
 
           {/* Client Water Tracker */}
           <WaterTracker initialMl={water.totalMl} />
