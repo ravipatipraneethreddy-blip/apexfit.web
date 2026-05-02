@@ -77,6 +77,7 @@ model ExerciseLog {
   sets         Int
   reps         Int
   weight       Float       // in kg
+  setDetails   Json?       // array of {weight, reps} for each set
   
   workoutLog   WorkoutLog  @relation(fields: [workoutLogId], references: [id])
 }

@@ -81,7 +81,7 @@ export async function logWorkout(formData: FormData) {
 
   try {
     const exercises = JSON.parse(exercisesRaw) as Array<{
-      name: string; sets: number; reps: number; weight: number;
+      name: string; sets: number; reps: number; weight: number; setDetails?: any[];
     }>;
 
     await prisma!.workoutLog.create({
@@ -94,6 +94,7 @@ export async function logWorkout(formData: FormData) {
             sets: ex.sets,
             reps: ex.reps,
             weight: ex.weight,
+            setDetails: ex.setDetails,
           })),
         },
       },
@@ -113,7 +114,7 @@ export async function logWorkout(formData: FormData) {
   // Trigger achievements
   try {
     const exercises = JSON.parse(exercisesRaw) as Array<{
-      name: string; sets: number; reps: number; weight: number;
+      name: string; sets: number; reps: number; weight: number; setDetails?: any[];
     }>;
     const maxWeight = Math.max(...exercises.map((e) => e.weight), 0);
     const earned = await checkAndUnlockBadges(user.id, {
@@ -156,7 +157,7 @@ export async function getRecentWorkouts() {
 
 // ─── Progressive Overload: Get previous exercise data ───
 export async function getPreviousExerciseData(): Promise<
-  Record<string, { weight: number; reps: number; sets: number }>
+  Record<string, { weight: number; reps: number; sets: number; setDetails?: any[] }>
 > {
   const dbReady = await isDbAvailable();
 
@@ -177,11 +178,11 @@ export async function getPreviousExerciseData(): Promise<
 
     if (recentWorkouts.length === 0) return {};
 
-    const prevData: Record<string, { weight: number; reps: number; sets: number }> = {};
+    const prevData: Record<string, { weight: number; reps: number; sets: number; setDetails?: any[] }> = {};
     for (const w of recentWorkouts) {
       for (const ex of w.exercises) {
         if (!prevData[ex.name]) {
-          prevData[ex.name] = { weight: ex.weight, reps: ex.reps, sets: ex.sets };
+          prevData[ex.name] = { weight: ex.weight, reps: ex.reps, sets: ex.sets, setDetails: ex.setDetails as any[] | undefined };
         }
       }
     }

@@ -28,7 +28,7 @@ type ExerciseEntry = {
   sets: { id: number; weight: number; reps: number; done: boolean }[];
 };
 
-type PreviousData = Record<string, { weight: number; reps: number; sets: number }>;
+type PreviousData = Record<string, { weight: number; reps: number; sets: number; setDetails?: any[] }>;
 
 // ─── Confetti Burst (lazy-loaded) ───
 function fireCelebration() {
@@ -297,6 +297,7 @@ export default function WorkoutLoggerClient({
           sets: done.length,
           reps: Math.round(done.reduce((sum, s) => sum + s.reps, 0) / done.length),
           weight: done.reduce((max, s) => Math.max(max, s.weight), 0),
+          setDetails: done.map((s) => ({ weight: s.weight, reps: s.reps })),
         };
       });
       formData.append("exercises", JSON.stringify(payload));
@@ -525,14 +526,15 @@ export default function WorkoutLoggerClient({
                 {/* Sets */}
                 <div className="px-2 pb-2 space-y-1">
                   {exercise.sets.map((s, setIdx) => {
-                    const beatingPrev = prev && s.done && (s.weight > prev.weight || (s.weight === prev.weight && s.reps > prev.reps));
+                    const prevSet = prev?.setDetails ? prev.setDetails[setIdx] : prev;
+                    const beatingPrev = prevSet && s.done && (s.weight > prevSet.weight || (s.weight === prevSet.weight && s.reps > prevSet.reps));
                     return (
                       <div key={s.id} className={`flex items-center gap-2 p-1.5 rounded-xl transition ${s.done ? "bg-emerald-500/10" : "bg-transparent"}`}>
                         <div className="w-8 text-center text-xs font-semibold text-muted-foreground">{setIdx + 1}</div>
                         <div className="flex-1 text-xs text-center">
-                          {prev ? (
+                          {prevSet ? (
                             <span className="text-muted-foreground font-mono">
-                              {prev.weight}×{prev.reps}
+                              {prevSet.weight}×{prevSet.reps}
                             </span>
                           ) : (
                             <span className="text-muted-foreground/40">—</span>
