@@ -8,7 +8,7 @@ export const metadata = { title: "Exercise Library | ApexFit" };
 export default async function ExerciseLibraryPage() {
   const user = await getUserProfile();
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
 
   // 1. Automatically bulk-seed the exercises if not already seeded

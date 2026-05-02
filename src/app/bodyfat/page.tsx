@@ -7,7 +7,7 @@ export default async function BodyFatPage() {
   const user = await getUserProfile();
 
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
 
   const history = await getBodyFatHistory();

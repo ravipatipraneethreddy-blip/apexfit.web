@@ -21,7 +21,7 @@ export default function Onboarding() {
   const [tdeeResult, setTdeeResult] = useState<any>(null);
   
   const [formData, setFormData] = useState({
-    age: "", height: "", weight: "", gender: "MALE", goal: "FAT_LOSS",
+    name: "", age: "", height: "", weight: "", gender: "MALE", goal: "FAT_LOSS",
     activityLevel: "MODERATE",
   });
 
@@ -36,6 +36,7 @@ export default function Onboarding() {
     setIsSubmitting(true);
     try {
       const data = new FormData();
+      data.append("name", formData.name || "Athlete");
       data.append("age", formData.age || "25");
       data.append("height", formData.height || "175");
       data.append("weight", formData.weight || "75");
@@ -90,6 +91,10 @@ export default function Onboarding() {
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="glass-panel p-8 rounded-3xl flex flex-col h-[440px]">
               <h2 className="text-2xl font-bold mb-6">Current Blueprint</h2>
               <div className="space-y-4 flex-1">
+                <div>
+                  <label className="text-sm text-muted-foreground block mb-1">Your Name</label>
+                  <input type="text" placeholder="e.g. Alex" className="w-full bg-card border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition text-foreground" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                </div>
                 <div>
                   <label className="text-sm text-muted-foreground block mb-1">Age</label>
                   <input type="number" placeholder="25" className="w-full bg-card border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary transition text-foreground" value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} />

@@ -7,6 +7,7 @@ import BottomNav from "./bottom-nav";
 const HIDDEN_NAV_PATHS = ["/onboarding", "/login", "/register"];
 
 import { OfflineSyncProvider } from "./offline-sync-provider";
+import { PullToRefresh } from "./pull-to-refresh";
 import { initNativeUI } from "@/lib/native/native-ui";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -46,7 +47,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <OfflineSyncProvider />
-      <main className={showNav ? "pb-24" : ""}>{children}</main>
+      <main className={showNav ? "pb-24" : ""}>
+        {showNav ? (
+          <PullToRefresh>{children}</PullToRefresh>
+        ) : (
+          children
+        )}
+      </main>
       {showNav && <BottomNav />}
     </>
   );

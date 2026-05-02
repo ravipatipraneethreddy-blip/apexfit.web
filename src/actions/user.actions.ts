@@ -13,6 +13,7 @@ async function isDbAvailable(): Promise<boolean> {
 
 
 export async function onboardUser(formData: FormData) {
+  const name = formData.get("name") as string;
   const ageStr = formData.get("age") as string;
   const heightStr = formData.get("height") as string;
   const weightStr = formData.get("weight") as string;
@@ -52,6 +53,7 @@ export async function onboardUser(formData: FormData) {
   await prisma!.user.update({
     where: { id: session.userId },
     data: {
+      name: name || "Athlete",
       age,
       height,
       weight,

@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 export default async function ProfilePage() {
   const user = await getUserProfile();
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
   const stats = await getUserStats();
   

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getUserProfile } from "@/actions/user.actions";
+import { getUserProfile, checkAndUpdateStreak } from "@/actions/user.actions";
 import { getTodaysMeals } from "@/actions/diet.actions";
 import { getRecentWorkouts } from "@/actions/workout.actions";
 import { getTodaysWater } from "@/actions/water.actions";
@@ -17,19 +17,20 @@ import WaterTracker from "@/components/water-tracker";
 import StepCounter from "@/components/step-counter";
 import { DashboardQuickLinks } from "@/components/dashboard/dashboard-quick-links";
 
-export const revalidate = 5; // Enable ISR for fast passive dashboard parsing
+export const revalidate = 30; // ISR — 30s is enough for a personal fitness app
 
 export default async function DashboardPage() {
   const user = await getUserProfile();
   
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
 
   const timezone = await getUserTimezone();
 
-  // Fetch critical required data
-  const [meals, workouts, water, progress] = await Promise.all([
+  // Update streak + Fetch critical required data in parallel
+  const [, meals, workouts, water, progress] = await Promise.all([
+    checkAndUpdateStreak(user.id),
     getTodaysMeals(timezone),
     getRecentWorkouts(),
     getTodaysWater(),

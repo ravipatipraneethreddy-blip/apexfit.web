@@ -3,13 +3,13 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Home, Flame, Dumbbell, TrendingUp, UserCircle } from "lucide-react";
+import { Home, Flame, Dumbbell, Trophy, UserCircle } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/diet", label: "Diet", icon: Flame },
   { href: "/workout", label: "Workout", icon: Dumbbell },
-  { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/social", label: "Social", icon: Trophy },
   { href: "/profile", label: "Profile", icon: UserCircle },
 ];
 

@@ -8,6 +8,7 @@ import { logWorkout, saveWorkoutTemplate, deleteWorkoutTemplate } from "@/action
 import { useRouter } from "next/navigation";
 import ExerciseAutocomplete from "@/components/exercise-autocomplete";
 import { useToast } from "@/components/toast";
+import { hapticTap, hapticSuccess } from "@/lib/haptics";
 
 const WORKOUT_TEMPLATES = [
   { name: "Push Day", exercises: ["Barbell Bench Press", "Incline Dumbbell Press", "Cable Flyes", "Overhead Press", "Lateral Raises", "Tricep Pushdown"] },
@@ -267,7 +268,10 @@ export default function WorkoutLoggerClient({
     const exercise = exercises.find((e) => e.id === exId);
     const set = exercise?.sets.find((s) => s.id === setId);
     setExercises(exercises.map((e) => e.id === exId ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, done: !s.done } : s)) } : e));
-    if (set && !set.done) setShowTimer(true);
+    if (set && !set.done) {
+      setShowTimer(true);
+      hapticTap();
+    }
   };
 
   const updateSet = (exId: number, setId: number, field: "weight" | "reps", value: number) => {
@@ -321,6 +325,7 @@ export default function WorkoutLoggerClient({
       }
 
       toast("Workout logged successfully! Great job.", "success");
+      hapticSuccess();
 
       // 🎉 Celebration!
       fireCelebration();

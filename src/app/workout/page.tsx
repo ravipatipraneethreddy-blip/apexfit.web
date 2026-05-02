@@ -10,7 +10,7 @@ export const revalidate = 5;
 export default async function WorkoutPage({ searchParams }: { searchParams: Promise<{ template?: string, templateId?: string }> }) {
   const user = await getUserProfile();
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
 
   const dbTemplates = await getWorkoutTemplates();

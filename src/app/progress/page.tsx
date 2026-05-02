@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export default async function ProgressPage() {
   const user = await getUserProfile();
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
 
   const { weightLogs, macroLogs } = await getProgressData();

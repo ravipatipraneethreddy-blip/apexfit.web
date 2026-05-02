@@ -10,7 +10,7 @@ export const metadata = { title: "Nutrition Reports | ApexFit" };
 
 export default async function ReportsPage() {
   const user = await getUserProfile();
-  if (!user) redirect("/onboarding");
+  if (!user) redirect("/login");
 
   const timezone = await getUserTimezone();
   const weeklyReport = await getNutritionReport(7, timezone);

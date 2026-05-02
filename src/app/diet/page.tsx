@@ -13,7 +13,7 @@ export const revalidate = 5; // Passive caching bounds
 export default async function DietPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await getUserProfile();
   if (!user) {
-    redirect("/onboarding");
+    redirect("/login");
   }
 
   const timezone = await getUserTimezone();

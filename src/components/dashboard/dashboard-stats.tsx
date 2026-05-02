@@ -1,5 +1,6 @@
-import { Activity, Dumbbell, Flame, Droplet, Leaf, TrendingUp, Wheat } from "lucide-react";
+import { Activity, Dumbbell, Flame, Droplet, Leaf, TrendingUp, Wheat, Utensils } from "lucide-react";
 import { StepStatCard } from "./step-stat-card";
+import Link from "next/link";
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -15,6 +16,31 @@ export function DashboardStats({ user, meals, workoutsCount }: { user: any; meal
   const targetCarbs = user.targetCarbs || 250;
   const targetFats = user.targetFats || 65;
   const targetFiber = 30;
+
+  // Show motivational empty state if nothing logged today
+  if (totalCals === 0 && workoutsCount === 0) {
+    return (
+      <div className="mb-8">
+        <div className="bg-card border border-dashed border-border rounded-2xl p-6 text-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+            <Utensils className="w-7 h-7 text-primary opacity-60" />
+          </div>
+          <h3 className="font-bold text-sm mb-1">Start Your Day Strong</h3>
+          <p className="text-xs text-muted-foreground mb-4 max-w-[240px] mx-auto">
+            Log your first meal or workout to see your daily stats light up.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/diet" className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 transition">
+              Log Meal
+            </Link>
+            <Link href="/workout" className="px-4 py-2 bg-secondary text-foreground text-xs font-bold rounded-xl hover:bg-secondary/70 transition">
+              Start Workout
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
     { label: "Calories", value: totalCals.toString(), sub: `/ ${targetCals}`, icon: Flame, color: "text-orange-400", bg: "bg-orange-400/10" },
