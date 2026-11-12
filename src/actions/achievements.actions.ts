@@ -1,10 +1,13 @@
 "use server";
 
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDbAvailable } from "./auth.actions";
 import { revalidatePath } from "next/cache";
 
 export async function getEarnedBadges(userId: string) {
+  const session = await getSession();
+  if (!session || session.userId !== userId) throw new Error("Unauthorized");
   const dbReady = await isDbAvailable();
   if (!dbReady) {
     return [];
@@ -18,6 +21,14 @@ export async function getEarnedBadges(userId: string) {
 }
 
 export async function checkAndUnlockBadges(userId: string, triggers: { loggedWorkout?: boolean, loggedMeal?: boolean, maxWeightLifted?: number, waterHitGoal?: boolean, macrosHitGoal?: boolean }) {
+  const session = await getSession();
+  if (!session || session.userId !== userId) throw new Error("Unauthorized");
+  const [mealCount, workoutCount, heavy] = await Promise.all([
+    prisma.mealLog.count({where:{userId,planned:false}}),
+    prisma.workoutLog.count({where:{userId}}),
+    prisma.exerciseLog.findFirst({where:{workoutLog:{userId},weight:{gte:100}}})
+  ]);
+  triggers = { loggedMeal: mealCount > 0, loggedWorkout: workoutCount > 0, maxWeightLifted: heavy ? 100 : 0 };
   const dbReady = await isDbAvailable();
   if (!dbReady) return [];
 
@@ -27,8 +38,8 @@ export async function checkAndUnlockBadges(userId: string, triggers: { loggedWor
   const grantBadge = async (badgeId: string) => {
     if (earned.includes(badgeId) || nowEarned.includes(badgeId)) return;
     
-    await prisma.achievement.create({
-      data: { userId, badgeId }
+    await prisma.achievement.upsert({
+      where: { userId_badgeId: {userId, badgeId} }, update: {}, create: { userId, badgeId }
     });
     nowEarned.push(badgeId);
   };
@@ -63,3 +74,4 @@ export async function checkAndUnlockBadges(userId: string, triggers: { loggedWor
 
   return nowEarned;
 }
+

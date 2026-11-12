@@ -1,5 +1,6 @@
 "use server";
 
+import { numeric } from "@/lib/validation";
 import { prisma } from "@/lib/prisma";
 import { getUserProfile } from "./user.actions";
 import { revalidatePath } from "next/cache";
@@ -30,6 +31,12 @@ type BodyFatResult = {
 export async function calculateBodyFat(input: BodyFatInput): Promise<BodyFatResult> {
   const { gender, height, waist, neck, hip } = input;
 
+  numeric(height, "Height", 100, 250);
+  numeric(waist, "Waist", 30, 250);
+  numeric(neck, "Neck", 15, 80);
+  if (gender !== "MALE" && gender !== "FEMALE") throw new Error("Invalid gender");
+  if (gender === "FEMALE") numeric(hip, "Hip", 40, 250);
+  if ((gender === "MALE" && waist <= neck) || (gender === "FEMALE" && (!hip || waist + hip <= neck))) throw new Error("Check your measurements");
   let bodyFatPct: number;
 
   if (gender === "MALE") {
@@ -68,6 +75,7 @@ function getBodyFatCategory(pct: number, gender: "MALE" | "FEMALE"): { category:
 }
 
 export async function saveBodyFatResult(bodyFatPct: number): Promise<{ success: boolean; error?: string }> {
+  numeric(bodyFatPct, "Body fat", 2, 60);
   const user = await getUserProfile();
   if (!user) return { success: false, error: "User not found" };
 
@@ -123,3 +131,4 @@ export async function getBodyFatHistory(): Promise<{ date: string; bodyFatPct: n
     return [];
   }
 }
+

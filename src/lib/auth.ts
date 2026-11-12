@@ -45,8 +45,9 @@ export async function getSession(): Promise<{ userId: string } | null> {
     const token = cookieStore.get(SESSION_COOKIE)?.value;
     if (!token) return null;
 
-    const { payload } = await jwtVerify(token, getJwtSecret());
-    return { userId: payload.userId as string };
+    const { payload } = await jwtVerify(token, getJwtSecret(), { algorithms: ["HS256"] });
+    if (typeof payload.userId !== "string" || !payload.userId) return null;
+    return { userId: payload.userId };
   } catch {
     return null;
   }
@@ -56,3 +57,4 @@ export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
 }
+

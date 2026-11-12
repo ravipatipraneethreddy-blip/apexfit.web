@@ -1,5 +1,7 @@
 "use server";
 
+import { numeric, textValue, recordId, logDate, assertOwner } from "@/lib/validation";
+import { setDetails } from "@/lib/coach";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
@@ -25,10 +27,13 @@ export async function getWorkoutTemplates() {
     id: t.id,
     name: t.name,
     exercises: t.exercises.map(e => e.name),
+    details: t.exercises.map(e => ({ name: e.name, sets: e.sets, reps: e.reps })),
   }));
 }
 
-export async function saveWorkoutTemplate(name: string, exerciseNames: string[]) {
+export async function saveWorkoutTemplate(name: string, exerciseNames: string[], details: { sets: number; reps: number }[] = []) {
+  name = textValue(name, "Template name");
+  if (!Array.isArray(exerciseNames) || exerciseNames.length < 1 || exerciseNames.length > 30) throw new Error("Choose 1–30 exercises");
   const user = await getUserProfile();
   if (!user) throw new Error("Unauthorized");
   const dbReady = await isDbAvailable();
@@ -39,7 +44,7 @@ export async function saveWorkoutTemplate(name: string, exerciseNames: string[])
       userId: user.id,
       name,
       exercises: {
-        create: exerciseNames.map(ex => ({ name: ex, sets: 0, reps: 0 })),
+        create: exerciseNames.map((ex, i) => ({ name: textValue(ex, "Exercise"), sets: numeric(details[i]?.sets ?? 3, "Sets", 1, 50, true), reps: numeric(details[i]?.reps ?? 10, "Reps", 1, 200, true) })),
       },
     },
   });
@@ -66,7 +71,10 @@ export async function logWorkout(formData: FormData) {
   const user = await getUserProfile();
   if (!user) throw new Error("User not found");
 
-  const name = formData.get("name") as string;
+  assertOwner(formData, user.id);
+  const id = recordId(formData, user.id);
+  const date = logDate(formData.get("date"));
+  const name = textValue(formData.get("name"), "Workout name");
   const exercisesRaw = formData.get("exercises") as string;
 
   if (!name || !exercisesRaw) {
@@ -84,12 +92,14 @@ export async function logWorkout(formData: FormData) {
       name: string; sets: number; reps: number; weight: number; setDetails?: any[];
     }>;
 
-    await prisma!.workoutLog.create({
-      data: {
-        userId: user.id,
+    const validated = validateExercises(exercises);
+    await prisma!.workoutLog.upsert({
+      where: { id }, update: {},
+      create: {
+        id, date, userId: user.id,
         name,
         exercises: {
-          create: exercises.map((ex) => ({
+          create: validated.map((ex) => ({
             name: ex.name,
             sets: ex.sets,
             reps: ex.reps,
@@ -109,7 +119,7 @@ export async function logWorkout(formData: FormData) {
   }
 
   // Update streak
-  await checkAndUpdateStreak(user.id);
+  await checkAndUpdateStreak(user.id).catch(() => undefined);
 
   // Trigger achievements
   try {
@@ -173,7 +183,6 @@ export async function getPreviousExerciseData(): Promise<
       where: { userId: user.id },
       include: { exercises: true },
       orderBy: { date: "desc" },
-      take: 10,
     });
 
     if (recentWorkouts.length === 0) return {};
@@ -195,6 +204,8 @@ export async function getPreviousExerciseData(): Promise<
 
 // ─── Workout Detail: Get single workout by ID ───
 export async function getWorkoutById(id: string) {
+  const user = await getUserProfile();
+  if (!user) return null;
   const dbReady = await isDbAvailable();
 
   if (!dbReady) {
@@ -203,7 +214,7 @@ export async function getWorkoutById(id: string) {
 
   try {
     const workout = await prisma!.workoutLog.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
       include: { exercises: true },
     });
     return workout || null;
@@ -213,15 +224,16 @@ export async function getWorkoutById(id: string) {
 }
 
 export async function getWorkoutStats() {
-  const workouts = await getRecentWorkouts();
+  const user = await getUserProfile();
+  const workouts = user ? await prisma.workoutLog.findMany({ where: { userId: user.id }, include: { exercises: true }, orderBy: { date: "desc" } }) : [];
 
   // Personal records — best weight per exercise
   const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
   for (const w of workouts) {
     for (const ex of (w as any).exercises || []) {
-      const current = prMap.get(ex.name);
-      if (!current || ex.weight > current.weight) {
-        prMap.set(ex.name, { weight: ex.weight, reps: ex.reps, date: w.date });
+      for (const set of setDetails(ex)) {
+        const current = prMap.get(ex.name);
+        if (!current || set.weight > current.weight || (set.weight === current.weight && set.reps > current.reps)) prMap.set(ex.name, { weight: set.weight, reps: set.reps, date: w.date });
       }
     }
   }
@@ -269,4 +281,35 @@ export async function getWorkoutStats() {
     frequencyData,
     recentWorkouts: workouts.slice(0, 5),
   };
+}
+
+export async function getWorkoutCount() {
+  const user = await getUserProfile();
+  return user ? prisma.workoutLog.count({where:{userId:user.id}}) : 0;
+}
+
+
+function validateExercises(value: unknown) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 30) throw new Error("A workout needs 1–30 exercises");
+  return value.map(ex => {
+    const name = textValue(ex.name, "Exercise name");
+    const sets = numeric(ex.sets, "Sets", 1, 50, true);
+    const reps = numeric(ex.reps, "Reps", 1, 200, true);
+    const weight = numeric(ex.weight, "Weight", 0, 1500);
+    if (ex.setDetails !== undefined && (!Array.isArray(ex.setDetails) || ex.setDetails.length !== sets)) throw new Error("Set details must match completed sets");
+    const details = ex.setDetails?.map((s: {weight:number;reps:number}) => ({weight:numeric(s.weight,"Set weight",0,1500),reps:numeric(s.reps,"Set reps",1,200,true)}));
+    return {name,sets,reps,weight,setDetails:details};
+  });
+}
+
+export async function updateWorkout(id: string, formData: FormData) {
+  const user = await getUserProfile();
+  if (!user) throw new Error("Unauthorized");
+  const name = textValue(formData.get("name"), "Workout name");
+  const date = logDate(formData.get("date"));
+  const exercises = validateExercises(JSON.parse(String(formData.get("exercises"))));
+  await prisma.workoutLog.update({where:{id,userId:user.id},data:{name,date,exercises:{deleteMany:{},create:exercises}}});
+  await checkAndUpdateStreak(user.id);
+  for (const path of ["/", "/workout", `/workout/${id}`, "/progress"]) revalidatePath(path);
+  return {success:true};
 }

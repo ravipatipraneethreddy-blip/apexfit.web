@@ -1,126 +1,107 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { logMeal } from "@/actions/diet.actions";
-import { logWorkout } from "@/actions/workout.actions";
-import { WifiOff, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { logMeal } from '@/actions/diet.actions';
+import { logWorkout } from '@/actions/workout.actions';
+import { pendingEntries, syncEntry, queueEntry, removeEntry, type QueueItem } from '@/lib/offline-queue';
 
-declare global {
-  interface Window {
-    __isSyncing: boolean;
-  }
-}
-
-interface OfflineQueueItem {
-  id: string;
-  timestamp: number;
-  type: "MEAL" | "WORKOUT";
-  formDataObj: Record<string, string>;
-  status: "PENDING" | "SYNCING" | "FAILED";
-  retryCount: number;
-}
-
-export function OfflineSyncProvider() {
-  const [isOffline, setIsOffline] = useState(false);
-  const [isSyncingUI, setIsSyncingUI] = useState(false);
+export function OfflineSyncProvider({ userId }: { userId?: string }) {
+  const router = useRouter();
+  const busy = useRef(false);
+  const [pending, setPending] = useState<QueueItem[]>([]);
+  const [offline, setOffline] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState('');
+  const [legacy, setLegacy] = useState(false);
 
   useEffect(() => {
-    setIsOffline(!navigator.onLine);
-
-    const handleOnline = async () => {
-      setIsOffline(false);
-      await processOfflineQueue();
+    const update = () => {
+      setOffline(!navigator.onLine);
+      try {
+        setPending(userId ? pendingEntries(userId) : []);
+        setLegacy(!!localStorage.getItem('apexfit-offline-queue'));
+      } catch {
+        setError('Device storage is unavailable. Enable it to keep drafts and unsynced entries.');
+      }
     };
+    update();
+    const events = ['apexfit-queue', 'storage', 'offline', 'online'];
+    events.forEach(event => window.addEventListener(event, update));
+    return () => events.forEach(event => window.removeEventListener(event, update));
+  }, [userId]);
 
-    const handleOffline = () => {
-      setIsOffline(true);
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    // Initial check in case it came online before hydration
-    if (navigator.onLine) {
-      processOfflineQueue();
-    }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
-  const processOfflineQueue = async () => {
-    if (window.__isSyncing) return;
-
+  const sync = useCallback(async () => {
+    if (!userId || !navigator.onLine || busy.current) return;
+    busy.current = true;
     try {
-      window.__isSyncing = true;
-      setIsSyncingUI(true);
-
-      const items: OfflineQueueItem[] = JSON.parse(
-        localStorage.getItem("apexfit-offline-queue") || "[]"
-      );
-
-      let processedCount = 0;
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.status === "SYNCING") continue;
-        if (item.retryCount >= 3) {
-          items[i].status = "FAILED";
-          continue;
-        }
-
-        items[i].status = "SYNCING";
-        localStorage.setItem("apexfit-offline-queue", JSON.stringify(items));
-
-        const fd = new FormData();
-        Object.entries(item.formDataObj).forEach(([k, v]) => fd.append(k, v));
-
+      const entries = pendingEntries(userId);
+      if (!entries.length) return;
+      setSyncing(true);
+      setError('');
+      let changed = false;
+      for (const item of entries) {
         try {
-          if (item.type === "MEAL") {
-            await logMeal(fd);
-          } else if (item.type === "WORKOUT") {
-            await logWorkout(fd);
-          }
-          // Remove item intrinsically on success
-          items.splice(i, 1);
-          i--; // Adjust index since we spliced
-          processedCount++;
-        } catch (err) {
-          console.error("Failed offline sync iteration:", err);
-          items[i].status = "FAILED";
-          items[i].retryCount += 1;
+          await syncEntry(item, item.type === 'MEAL' ? logMeal : logWorkout);
+          changed = true;
+        } catch (e) {
+          queueEntry({ ...item, error: e instanceof Error ? e.message : 'Please retry.' });
+          setError('Some entries could not sync. They remain on this device.');
         }
-        
-        // Write the array back after each item explicitly
-        localStorage.setItem("apexfit-offline-queue", JSON.stringify(items));
       }
-
-      if (processedCount > 0) {
-        // You could trigger a router.refresh() here if you wanted the layout to pop with new actual DB entries.
-      }
+      if (changed) router.refresh();
+    } catch {
+      setError('Could not access saved entries. Check device storage and retry.');
     } finally {
-      window.__isSyncing = false;
-      setIsSyncingUI(false);
+      busy.current = false;
+      setSyncing(false);
     }
-  };
+  }, [userId, router]);
 
-  if (!isOffline && !isSyncingUI) return null;
+  useEffect(() => {
+    void sync();
+    const retry = () => { if (document.visibilityState === 'visible') void sync(); };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    const timer = setInterval(retry, 30000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+    };
+  }, [sync]);
 
-  return (
-    <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500/90 text-amber-950 backdrop-blur-sm px-4 py-1.5 flex items-center justify-center gap-2 text-xs font-semibold shadow-md">
-      {isSyncingUI ? (
-        <>
-          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-          <span>Syncing offline data...</span>
-        </>
-      ) : (
-        <>
-          <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline Mode. Changes queue locally.</span>
-        </>
-      )}
-    </div>
-  );
+  function download(older = false) {
+    try {
+      const data = older ? localStorage.getItem('apexfit-offline-queue') || '[]' : JSON.stringify(pendingEntries(userId!), null, 2);
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = older ? 'apexfit-legacy-unsynced.json' : 'apexfit-unsynced.json';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { setError('Could not download the entries. They remain on this device.'); }
+  }
+
+  if (!userId || (!pending.length && !offline && !legacy && !syncing && !error)) return null;
+  return <aside aria-label="Save and sync status" className="border-b border-amber-400/30 bg-amber-400/10 p-3 text-sm">
+    <p role="status">{offline ? 'Offline. Saved entries stay on this device.' : syncing ? 'Syncing your entries…' : pending.length + ' entries waiting to sync.'}</p>
+    {error && <p>{error}</p>}
+    {pending.length > 0 && <>
+      {!offline && <button className="underline mr-3" disabled={syncing} onClick={() => void sync()}>Retry sync</button>}
+      <button className="underline" onClick={() => download()}>Download pending entries</button>
+      <details className="mt-2"><summary className="cursor-pointer">Review pending entries</summary><ul className="mt-2 space-y-2">
+        {pending.map(item => <li key={item.id}>
+          <span>{item.form.foodName || item.form.name || item.type}</span>
+          {item.error && <span className="ml-2">{item.error}</span>}
+          <button disabled={syncing} className="underline ml-3" onClick={() => {
+            if (window.confirm('Remove this unsynced entry from this device? Download it first if you want to keep a copy.')) {
+              try { removeEntry(item); } catch { setError('Could not remove the entry.'); }
+            }
+          }}>Remove from queue</button>
+        </li>)}
+      </ul></details>
+    </>}
+    {legacy && <p className="mt-1">Older unsynced entries have no account identifier and were preserved. <button className="underline" onClick={() => download(true)}>Download for review</button></p>}
+  </aside>;
 }

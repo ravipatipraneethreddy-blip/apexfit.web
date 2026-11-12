@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 // Lazy-load recharts for history chart
 const LazyHistoryChart = lazy(() =>
   import("recharts").then((mod) => ({
-    default: ({ data, tooltipContent }: { data: any[]; tooltipContent: React.ReactNode }) => (
+    default: ({ data, tooltipContent }: { data: any[]; tooltipContent: React.ReactElement }) => (
       <mod.ResponsiveContainer width="100%" height="100%">
         <mod.AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
           <defs>
@@ -487,3 +487,4 @@ export default function BodyFatClient({
     </div>
   );
 }
+

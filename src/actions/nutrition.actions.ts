@@ -1,8 +1,7 @@
 "use server";
 
 // ═══════════════════════════════════════════════════════════════════
-// ApexFit Nutrition Engine v2 — Production-grade calorie calculator
-// All values: per 100g | Using IFCT/NIN/USDA verified data
+// ApexFit food lookup. Values are estimates per 100g; recipes and brands vary.
 // ═══════════════════════════════════════════════════════════════════
 
 // Data model for each food item
@@ -1134,7 +1133,7 @@ for (const [key, entry] of Object.entries(FOOD_DB)) {
 
 // ─── Food Suggestions for Autocomplete ───────────────────────────
 export async function getFoodSuggestions(query: string): Promise<{ name: string; serving: string; cal: number }[]> {
-  if (!query || query.length < 2) return [];
+  if (typeof query !== 'string' || query.length < 2 || query.length > 300) return [];
   const q = query.toLowerCase().trim();
   const results: { name: string; serving: string; cal: number }[] = [];
   const seen = new Set<string>();
@@ -1171,7 +1170,7 @@ export type NutritionResult = {
   carbs: number;
   fats: number;
   fiber: number;
-  source: "ai" | "database" | "estimate";
+  source: "database" | "estimate";
   debug?: string; // Debug trace for troubleshooting
 };
 
@@ -1181,6 +1180,7 @@ type ParsedInput = {
   foodKey: string;
   originalName: string;
   isComplex: boolean;
+  measure?: 'tbsp' | 'cup' | 'ml';
 };
 
 // ─── STEP 1: Parse user input ────────────────────────────────────
@@ -1188,8 +1188,8 @@ function parseInput(input: string): ParsedInput {
   const raw = input.trim();
   const trimmed = raw.toLowerCase();
 
-  // Complex inputs with "and", "with", commas → route to compound/AI
-  if (/\band\b|\bwith\b|,/.test(trimmed)) {
+  // Compound queries must resolve every ingredient.
+  if (/\band\b|\bwith\b|,|&/.test(trimmed)) {
     return { grams: null, count: null, foodKey: trimmed, originalName: raw, isComplex: true };
   }
 
@@ -1202,7 +1202,7 @@ function parseInput(input: string): ParsedInput {
   // Match "200ml milk"
   const mlMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:ml|mls)\s+(.+)$/);
   if (mlMatch) {
-    return { grams: parseFloat(mlMatch[1]), count: null, foodKey: mlMatch[2].trim(), originalName: raw, isComplex: false };
+    return { grams: parseFloat(mlMatch[1]), count: null, foodKey: mlMatch[2].trim(), originalName: raw, isComplex: false, measure:'ml' };
   }
 
   // Match "2 tbsp oil", "1 tablespoon ghee"
@@ -1211,13 +1211,13 @@ function parseInput(input: string): ParsedInput {
     const tbspCount = parseFloat(tbspMatch[1]);
     const isTsp = /tsp|teaspoon/.test(tbspMatch[0]);
     // 1 tsp ≈ 5g, 1 tbsp ≈ 15g
-    return { grams: null, count: tbspCount * (isTsp ? 0.33 : 1), foodKey: tbspMatch[2].trim(), originalName: raw, isComplex: false };
+    return { grams: null, count: tbspCount * (isTsp ? 1/3 : 1), foodKey: tbspMatch[2].trim(), originalName: raw, isComplex: false, measure:'tbsp' };
   }
 
   // Match "2 cup rice", "1 glass milk"
   const cupMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:cups?|glass|glasses|bowls?)\s+(.+)$/);
   if (cupMatch) {
-    return { grams: null, count: parseFloat(cupMatch[1]), foodKey: cupMatch[2].trim(), originalName: raw, isComplex: false };
+    return { grams: null, count: parseFloat(cupMatch[1]), foodKey: cupMatch[2].trim(), originalName: raw, isComplex: false, measure:'cup' };
   }
 
   // Match "2 eggs", "3 chapati", "8 idli", "1 plate biryani"
@@ -1242,7 +1242,7 @@ function parseInput(input: string): ParsedInput {
 // ─── STEP 2: Lookup food in local DB ─────────────────────────────
 function lookupLocal(foodKey: string): { key: string; data: FoodEntry } | null {
   // 1. Direct match
-  if (FOOD_DB[foodKey]) return { key: foodKey, data: FOOD_DB[foodKey] };
+  if (Object.hasOwn(FOOD_DB,foodKey)) return { key: foodKey, data: FOOD_DB[foodKey] };
 
   // 2. Alias match (O(1))
   const aliasKey = ALIAS_MAP.get(foodKey);
@@ -1250,7 +1250,7 @@ function lookupLocal(foodKey: string): { key: string; data: FoodEntry } | null {
 
   // 3. Pluralization: strip trailing 's', 'es'
   const depluralized = foodKey.replace(/(ies)$/, "y").replace(/(es|s)$/, "");
-  if (FOOD_DB[depluralized]) return { key: depluralized, data: FOOD_DB[depluralized] };
+  if (Object.hasOwn(FOOD_DB,depluralized)) return { key: depluralized, data: FOOD_DB[depluralized] };
   const depluralAlias = ALIAS_MAP.get(depluralized);
   if (depluralAlias && FOOD_DB[depluralAlias]) return { key: depluralAlias, data: FOOD_DB[depluralAlias] };
 
@@ -1261,13 +1261,6 @@ function lookupLocal(foodKey: string): { key: string; data: FoodEntry } | null {
     if (result) return result;
   }
 
-  // 5. Partial match (last resort — for multi-word keys)
-  for (const [key, val] of Object.entries(FOOD_DB)) {
-    if (foodKey.includes(key) || key.includes(foodKey)) {
-      return { key, data: val };
-    }
-  }
-
   return null;
 }
 
@@ -1275,29 +1268,38 @@ function lookupLocal(foodKey: string): { key: string; data: FoodEntry } | null {
 function calcFromDb(
   data: FoodEntry,
   grams: number | null,
-  count: number | null
+  count: number | null,
+  measure?: ParsedInput['measure']
 ): { calories: number; protein: number; carbs: number; fats: number; fiber: number; quantity: string; debug: string } {
 
   let totalGrams: number;
   let quantityLabel: string;
   let debugTrace: string;
 
+  if ((grams !== null && (!Number.isFinite(grams) || grams <= 0 || grams > 10000)) || (count !== null && (!Number.isFinite(count) || count <= 0 || count > 100))) throw new Error('Enter a valid positive quantity.');
+  if (measure === 'ml' && data.defaultUnit !== 'ml') throw new Error('Enter this food in grams; its volume conversion is unknown.');
+
   if (grams !== null) {
     // User specified grams/ml directly
     totalGrams = grams;
-    quantityLabel = `${grams}g`;
+    quantityLabel = `${grams}${measure === 'ml' ? 'ml' : 'g'}`;
     debugTrace = `[GRAMS] input=${grams}g`;
   } else if (count !== null) {
     // User specified count → multiply by weightPerUnit
-    if (!data.weightPerUnit || data.weightPerUnit <= 0) {
-      console.error(`[NutritionEngine] weightPerUnit missing for food with defaultUnit=${data.defaultUnit}`);
-      totalGrams = 100 * count;
-      debugTrace = `[ERROR] weightPerUnit missing, assumed 100g × ${count}`;
+    if (measure === 'tbsp' || measure === 'cup') {
+      const unitPattern = measure === 'tbsp' ? /(\d+(?:\.\d+)?(?:\/\d+)?)\s*tbsp/i : /(\d+(?:\.\d+)?(?:\/\d+)?)\s*(?:cups?|glass|glasses|bowls?)/i;
+      const match = data.servingLabel.match(unitPattern);
+      if (!match) throw new Error('Enter this food in grams; its volume conversion is unknown.');
+      const [numerator,denominator='1'] = match[1].split('/');
+      const unitsPerServing = Number(numerator)/Number(denominator);
+      totalGrams = data.weightPerUnit * count / unitsPerServing;
+      quantityLabel = `${Number(count.toFixed(2))} ${measure} (approximately ${Number(totalGrams.toFixed(1))}g)`;
+      debugTrace = `[VOLUME] ${count} ${measure} = ${totalGrams}g`;
     } else {
       totalGrams = data.weightPerUnit * count;
       debugTrace = `[COUNT] ${count} × ${data.weightPerUnit}g/unit = ${totalGrams}g`;
+      quantityLabel = `${count} × ${data.servingLabel}`;
     }
-    quantityLabel = `${count} × ${data.servingLabel}`;
   } else {
     totalGrams = data.weightPerUnit || 100;
     quantityLabel = data.servingLabel;
@@ -1325,53 +1327,6 @@ function calcFromDb(
   return result;
 }
 
-// ─── AI Lookup (unchanged) ───────────────────────────────────────
-async function lookupViaAI(input: string, originalName: string): Promise<NutritionResult | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey === "your-openai-api-key-here") return null;
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: `You are a nutrition database. Given a food item and quantity, return accurate nutritional estimates in JSON: {"calories": number, "protein": number, "carbs": number, "fats": number, "fiber": number, "quantity": "description"}. All macro values in grams, calories in kcal. Use USDA or Indian food composition data (NIN/IFCT). For combined items (e.g. "rice and sambar"), sum all components. Be precise — a single idli is ~52 kcal, one egg is ~78 kcal, 1 cup rice is ~195 kcal.`,
-          },
-          { role: "user", content: `Nutritional info for: "${input}"` },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (content) {
-      const parsed = JSON.parse(content);
-      return {
-        foodName: originalName,
-        quantity: parsed.quantity || input,
-        calories: Math.round(parsed.calories || 0),
-        protein: Math.round(parsed.protein || 0),
-        carbs: Math.round(parsed.carbs || 0),
-        fats: Math.round(parsed.fats || 0),
-        fiber: Math.round(parsed.fiber || 0),
-        source: "ai",
-      };
-    }
-  } catch (err) {
-    console.error("[NutritionEngine] OpenAI lookup failed:", err);
-  }
-
-  return null;
-}
-
 // ─── Compound lookup (rice and dal, etc.) ────────────────────────
 function lookupCompoundLocal(input: string): NutritionResult | null {
   const parts = input
@@ -1391,7 +1346,7 @@ function lookupCompoundLocal(input: string): NutritionResult | null {
     const parsed = parseInput(part);
     const match = lookupLocal(parsed.foodKey);
     if (match) {
-      const result = calcFromDb(match.data, parsed.grams, parsed.count);
+      const result = calcFromDb(match.data, parsed.grams, parsed.count, parsed.measure);
       totalCal += result.calories;
       totalPro += result.protein;
       totalCarb += result.carbs;
@@ -1403,7 +1358,7 @@ function lookupCompoundLocal(input: string): NutritionResult | null {
     }
   }
 
-  if (matchCount === 0) return null;
+  if (matchCount !== parts.length) return null;
 
   return {
     foodName: input.trim(),
@@ -1420,35 +1375,25 @@ function lookupCompoundLocal(input: string): NutritionResult | null {
 
 // ─── MAIN ENTRY POINT ───────────────────────────────────────────
 export async function lookupNutrition(input: string): Promise<NutritionResult> {
+  if (typeof input !== "string" || input.length > 300 || !input.trim()) throw new Error("Enter a food and quantity (up to 300 characters).");
   const parsed = parseInput(input);
+  if ((parsed.grams !== null && (parsed.grams <= 0 || parsed.grams > 10000)) || (parsed.count !== null && (parsed.count <= 0 || parsed.count > 100))) throw new Error("Enter a valid positive quantity.");
 
-  console.log(`[NutritionEngine] Input: "${input}" → parsed:`, {
-    grams: parsed.grams,
-    count: parsed.count,
-    foodKey: parsed.foodKey,
-    isComplex: parsed.isComplex,
-  });
-
-  // Complex queries (with "and", "with") → try local compound first, then AI
+  // Unknown ingredients require manual input instead of a guessed match.
   if (parsed.isComplex) {
     // Try local compound first (faster & free)
     const compoundResult = lookupCompoundLocal(input);
     if (compoundResult) {
-      console.log(`[NutritionEngine] Compound match:`, compoundResult.debug);
       return compoundResult;
     }
 
-    // Fall back to AI
-    const aiResult = await lookupViaAI(input, parsed.originalName);
-    if (aiResult) return aiResult;
   }
 
   // Try local database for simple queries
   if (!parsed.isComplex) {
     const match = lookupLocal(parsed.foodKey);
     if (match) {
-      const result = calcFromDb(match.data, parsed.grams, parsed.count);
-      console.log(`[NutritionEngine] DB match: ${match.key} → ${result.debug}`);
+      const result = calcFromDb(match.data, parsed.grams, parsed.count, parsed.measure);
       return {
         foodName: parsed.originalName,
         quantity: result.quantity,
@@ -1463,11 +1408,7 @@ export async function lookupNutrition(input: string): Promise<NutritionResult> {
     }
   }
 
-  // Try AI for unrecognized single foods
-  const aiResult = await lookupViaAI(input, parsed.originalName);
-  if (aiResult) return aiResult;
-
   // No match found — throw so the UI can show an error
-  console.warn(`[NutritionEngine] No match found for "${input}"`);
-  throw new Error(`Could not find nutritional data for "${parsed.originalName}". Try rephrasing or being more specific.`);
+  throw new Error(`No complete database match for "${parsed.originalName}". Choose a listed food or enter the nutrition manually.`);
 }
+

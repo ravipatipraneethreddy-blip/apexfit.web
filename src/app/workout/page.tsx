@@ -21,6 +21,7 @@ export default async function WorkoutPage({ searchParams }: { searchParams: Prom
     const previousData = await getPreviousExerciseData();
     return (
       <WorkoutLoggerClient
+        key={`${user.id}:${params.templateId || params.template}`}
         user={user}
         previousData={previousData}
         dbTemplates={dbTemplates}
@@ -42,3 +43,4 @@ export default async function WorkoutPage({ searchParams }: { searchParams: Prom
     />
   );
 }
+

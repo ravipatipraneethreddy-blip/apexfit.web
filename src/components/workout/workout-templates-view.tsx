@@ -41,7 +41,7 @@ export function WorkoutTemplatesView({
           <div className="absolute top-0 left-0 w-1 h-full bg-primary neon-glow" />
           <div className="flex gap-3 pl-2">
             <p className="text-sm text-foreground/90 leading-relaxed">
-              <strong className="text-primary">Coach AI:</strong> Pick a template or start custom. Focus on progressive overload — try to beat last session&apos;s numbers.
+              <strong className="text-primary">Coach:</strong> Pick a template or start custom. Focus on progressive overload — progress when your form and recovery support it.
             </p>
           </div>
         </div>
@@ -140,3 +140,4 @@ export function WorkoutTemplatesView({
     </div>
   );
 }
+

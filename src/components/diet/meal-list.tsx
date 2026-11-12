@@ -1,3 +1,4 @@
+import { EditMeal } from "./edit-meal";
 import { DeleteMealButton } from "./delete-meal-button";
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -20,6 +21,7 @@ export function MealList({ meals, isFutureDate }: { meals: any[]; isFutureDate: 
           >
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{item.foodName}</p>
+              {item.planned && <p className="text-xs text-amber-400">Planned · not counted as eaten</p>}
               <div className="text-[10px] text-muted-foreground mt-1 flex gap-2">
                 <span className="text-blue-400">{r1(item.protein)}P</span>
                 <span className="text-orange-400">{r1(item.carbs)}C</span>
@@ -32,6 +34,7 @@ export function MealList({ meals, isFutureDate }: { meals: any[]; isFutureDate: 
                 <p className="font-bold text-primary">{r1(item.calories)}</p>
                 <p className="text-[10px] text-muted-foreground">kcal</p>
               </div>
+              <EditMeal meal={item} />
               <DeleteMealButton id={item.id} />
             </div>
           </div>
@@ -40,3 +43,4 @@ export function MealList({ meals, isFutureDate }: { meals: any[]; isFutureDate: 
     </div>
   );
 }
+

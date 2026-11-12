@@ -7,6 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --test tests/*.cjs",
+    "typecheck": "tsc --noEmit",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
@@ -44,3 +46,4 @@
     "typescript": "^5"
   }
 }
+

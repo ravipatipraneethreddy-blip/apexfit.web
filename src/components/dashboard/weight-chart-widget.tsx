@@ -6,7 +6,7 @@ import { ChevronUp } from "lucide-react";
 // Lazy-load recharts
 const LazyRecharts = lazy(() =>
   import("recharts").then((mod) => ({
-    default: ({ data, tooltipComponent }: { data: any[]; tooltipComponent: React.ReactNode }) => (
+    default: ({ data, tooltipComponent }: { data: any[]; tooltipComponent: React.ReactElement }) => (
       <mod.ResponsiveContainer width="100%" height="100%">
         <mod.AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
           <defs>
@@ -67,7 +67,7 @@ export function WeightChartWidget({ weightLogs, user }: { weightLogs: any[]; use
     const data = weightLogs
       .filter((log) => new Date(log.date).getTime() >= cutoff)
       .map((log: any) => ({
-        name: log.date.substring(0, 5),
+        name: new Date(log.date).toLocaleDateString('en-GB', {day:'numeric',month:'short'}),
         weight: log.weight || log.Weight,
       }));
 
@@ -113,3 +113,4 @@ export function WeightChartWidget({ weightLogs, user }: { weightLogs: any[]; use
     </div>
   );
 }
+

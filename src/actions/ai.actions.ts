@@ -1,141 +1,40 @@
-"use server";
-
-import { getUserProfile } from "./user.actions";
-import { getTodaysMeals } from "./diet.actions";
-import { getRecentWorkouts } from "./workout.actions";
-
-export async function getCoachAnalysis(timezone: string = "Asia/Kolkata") {
-  const defaultRes = { adherence: "Pending", insight: "Please complete the onboarding to get personalized AI coaching.", recommendation: "Log some meals!" };
-  const user = await getUserProfile();
-  if (!user) return defaultRes;
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  const noApiKey = !apiKey || apiKey === "your-openai-api-key-here";
-
-  const meals = await getTodaysMeals(timezone);
-  const workouts = await getRecentWorkouts();
-
-  const totalCals = meals.reduce((acc: number, meal: any) => acc + meal.calories, 0);
-  const totalProtein = meals.reduce((acc: number, meal: any) => acc + meal.protein, 0);
-
-  if (noApiKey) {
-    return {
-      adherence: totalCals > (user.targetCalories || 2000) ? "Over Calorie Target" : "On Track",
-      insight: `Today: ${totalCals} kcal across ${meals.length} meals (${totalProtein}g protein). ${workouts.length > 0 ? "Great job hitting the gym!" : "No workouts logged today."}`,
-      recommendation: totalProtein < 150 ? "Aim for one more high-protein meal to hit your daily goal." : "You're killing it today! Keep up the momentum.",
-    };
-  }
-
-  // Real OpenAI call
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are ApexFit, a highly motivating, elite fitness and nutrition coach. Always return JSON strictly formatted with keys: 'adherence' (e.g. 'On Track', 'Needs Work'), 'insight' (short 1-sentence observation), and 'recommendation' (1 actionable step).",
-          },
-          {
-            role: "user",
-            content: `User Profile: weight ${user.weight}kg, target ${user.targetWeight}kg, goal ${user.goal}. Today's totals: ${totalCals}kcals, ${totalProtein}g protein across ${meals.length} meals. Recent workouts: ${workouts.map((w: any) => w.name).join(", ")}. Provide structured feedback.`,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content) as { adherence: string, insight: string, recommendation: string };
-  } catch (error) {
-    console.error("OpenAI Error:", error);
-    return {
-      adherence: "Unknown",
-      insight: "The AI Coach is currently resting between sets.",
-      recommendation: "Could not fetch analysis."
-    };
-  }
+'use server';
+// Compatibility entry points: deterministic coaching only. No model or API calls.
+import { getUserProfile } from './user.actions';
+import { getTodaysMeals } from './diet.actions';
+import { getTodaysWater } from './water.actions';
+import { getUserTimezone } from '@/lib/timezone';
+import { prisma } from '@/lib/prisma';
+import { buildCoach, type CoachInput } from '@/lib/coach';
+import { lookupNutrition } from './nutrition.actions';
+export async function getCoachData():Promise<CoachInput> {
+  const user=await getUserProfile();
+  if(!user)throw new Error('Unauthorized');
+  const timezone=await getUserTimezone();
+  const since=new Date(Date.now()-90*86400000);
+  const [workouts,meals,weights,water]=await Promise.all([
+    prisma.workoutLog.findMany({where:{userId:user.id,date:{gte:since}},include:{exercises:true},orderBy:{date:'desc'}}),
+    getTodaysMeals(timezone),
+    prisma.progressLog.findMany({where:{userId:user.id,date:{gte:since},bodyFatPct:null},select:{date:true,weight:true},orderBy:{date:'asc'}}),
+    getTodaysWater()
+  ]);
+  return { now:new Date().toISOString(),timezone,user:{id:user.id,goal:user.goal,weight:user.weight,targetWeight:user.targetWeight,targetCalories:user.targetCalories,targetProtein:user.targetProtein,targetCarbs:user.targetCarbs,targetFats:user.targetFats,dietPreference:user.dietPreference},workouts:workouts.map(w=>({name:w.name,date:w.date.toISOString(),exercises:w.exercises.map(e=>({name:e.name,weight:e.weight,reps:e.reps,sets:e.sets,setDetails:e.setDetails}))})),meals:meals.map(m=>({calories:m.calories,protein:m.protein,carbs:m.carbs,fats:m.fats,fiber:m.fiber})),weights:weights.map(w=>({...w,date:w.date.toISOString()})),waterMl:water.totalMl};
 }
-
-export async function generateDailyMealPlan(remainingCals: number, remainingPro: number, remainingCarbs: number, remainingFats: number, preference: string) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const noApiKey = !apiKey || apiKey === "your-openai-api-key-here";
-
-  if (noApiKey || remainingCals <= 0) {
-    return [];
-  }
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert sports nutritionist. Generate a meal plan strictly formatted as JSON: { meals: [{ foodName: string, calories: number, protein: number, carbs: number, fats: number }] }.",
-          },
-          {
-            role: "user",
-            content: `Generate a daily meal plan with exactly 3 to 4 meals that together add up closely to: ${remainingCals} kcal, ${remainingPro}g protein, ${remainingCarbs}g carbs, ${remainingFats}g fats. Diet preference: ${preference}. Ensure food names are concise and realistic.`,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    const result = JSON.parse(data.choices[0].message.content);
-    return result.meals || [];
-  } catch (error) {
-    console.error("OpenAI Error:", error);
-    return [];
-  }
+export async function getCoachAnalysis(_timezone?:string) {return buildCoach(await getCoachData());}
+export async function askCoachQuestion(question:string,_contextText?:string) {
+  const c=buildCoach(await getCoachData());
+  const q=String(question).slice(0,300).toLowerCase();
+  const answer=/pain|injur/.test(q)?'Pause painful exercises. Persistent, severe or worsening pain needs professional assessment.':/food|meal|protein|calor|diet/.test(q)?c.nutrition:/weight|progress/.test(q)?c.trend.message:/water|hydrat/.test(q)?c.water:/rest|recover|sleep/.test(q)?c.notes.join(' ')||'Follow the rest days in your programme and check in before training.':/train|workout|next|tomorrow/.test(q)?c.recommendation:'Choose Next workout, Progression, Nutrition or Recovery in your coach panel. The coach uses your logged data and does not provide open-ended chat.';
+  return {answer};
 }
-
-export async function askCoachQuestion(question: string, contextText: string) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey === "your-openai-api-key-here") {
-    return { answer: "I'm currently resting. Please provide a valid OpenAI API key to wake me up!" };
-  }
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are the ApexFit AI coach. You help the user with fitness, diet, and training advice. Keep responses concise and highly actionable. Reference their current context if given.",
-          },
-          {
-            role: "user",
-            content: `User Context: ${contextText}\n\nQuestion: ${question}`,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    return { answer: data.choices[0].message.content };
-  } catch (error) {
-    console.error("OpenAI Ask Error:", error);
-    return { answer: "I encountered an error trying to process your question." };
-  }
+export async function generateDailyMealPlan(_cal?:number,_pro?:number,_carb?:number,_fat?:number,_preference?:string) {
+  const c=buildCoach(await getCoachData());
+  if(c.remaining.calories<100)return [];
+  const preference=(await getUserProfile())!.dietPreference;
+  const protein=preference==='VEGAN'?'tofu':preference==='VEGETARIAN'?'paneer':'chicken breast';
+  const names=preference==='KETO'?[protein,'cucumber']:[protein,'rice','dal'];
+  const foods=await Promise.all(names.map(name=>lookupNutrition(name)));
+  const total=foods.reduce((s,f)=>s+f.calories,0);
+  const scale=Math.min(1,c.remaining.calories/Math.max(1,total));
+  return foods.map(f=>({foodName:`${f.foodName} (${Math.round(scale*100)}% of ${f.quantity})`,calories:Math.round(f.calories*scale),protein:Math.round(f.protein*scale),carbs:Math.round(f.carbs*scale),fats:Math.round(f.fats*scale)}));
 }

@@ -11,7 +11,7 @@ const steps = [
   { id: "stats", title: "Your Blueprint" },
   { id: "gender", title: "Biological Data" },
   { id: "goal", title: "Your Target" },
-  { id: "complete", title: "AI Generation" },
+  { id: "complete", title: "Plan setup" },
 ];
 
 export default function Onboarding() {
@@ -78,7 +78,7 @@ export default function Onboarding() {
               <div>
                 <Activity className="w-12 h-12 text-primary mb-6" />
                 <h1 className="text-3xl font-bold mb-2 tracking-tight">Your goals,<br/>engineered.</h1>
-                <p className="text-muted-foreground">ApexFit is your elite AI coach. We don&apos;t just track—we analyze, adapt, and push you to your peak performance.</p>
+                <p className="text-muted-foreground">ApexFit is your personal coach. We don&apos;t just track—we analyze, adapt, and push you to your peak performance.</p>
               </div>
               <button onClick={nextStep} className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-semibold flex justify-center items-center gap-2 hover:opacity-90 transition neon-glow">
                 Start Calibration <ChevronRight className="w-5 h-5" />
@@ -248,3 +248,4 @@ export default function Onboarding() {
     </div>
   );
 }
+

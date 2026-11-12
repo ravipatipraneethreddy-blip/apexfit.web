@@ -1,6 +1,6 @@
 import { getUserProfile } from "@/actions/user.actions";
-import { getWeeklyMeals, getRecentFoods, getDietHistory } from "@/actions/diet.actions";
-import { getUserTimezone } from "@/lib/timezone";
+import { getMealsForDate, getRecentFoods } from "@/actions/diet.actions";
+import { getUserTimezone, startOfDate, dateKey, shiftDate } from "@/lib/timezone";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -24,20 +24,11 @@ export default async function DietPage({ searchParams }: { searchParams: Promise
   const now = new Date();
   const localTodayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
   
-  const dateStr = params.date || localTodayStr;
-  const targetDate = new Date(dateStr);
+  let dateStr = params.date || localTodayStr;
+  try { shiftDate(dateStr, 0); } catch { dateStr = localTodayStr; }
   const isFutureDate = dateStr > localTodayStr;
-
-  // We still fetch weekly meals so other logic can exist, but ideally we fetch just the requested date
-  const [weeklyMeals, recentFoods] = await Promise.all([
-    getWeeklyMeals(timezone),
-    getRecentFoods(),
-  ]);
-
-  // Filter to just the selected date's meals
-  const selectedDateMeals = weeklyMeals.filter(
-    (m: any) => new Date(m.date).toISOString().substring(0, 10) === dateStr
-  );
+  const targetDate = startOfDate(dateStr, timezone);
+  const [selectedDateMeals, recentFoods] = await Promise.all([getMealsForDate(dateStr, timezone), getRecentFoods()]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 flex justify-center font-sans tracking-tight">
@@ -54,10 +45,11 @@ export default async function DietPage({ searchParams }: { searchParams: Promise
         </header>
 
         {/* Date Navigator - Client Component */}
-        <DateNavigator initialDate={dateStr} />
+        <DateNavigator initialDate={dateStr} today={localTodayStr} />
 
         {/* Client orchestrator to maintain instant optimistic UI updates on forms while preserving RSC initialization */}
         <DietTrackerClient
+          key={`${user.id}:${dateStr}`}
           initialMeals={selectedDateMeals}
           user={user}
           isFutureDate={isFutureDate}
@@ -68,3 +60,4 @@ export default async function DietPage({ searchParams }: { searchParams: Promise
     </div>
   );
 }
+

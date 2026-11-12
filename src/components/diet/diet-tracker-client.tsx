@@ -19,9 +19,10 @@ export function DietTrackerClient({
 
   return (
     <>
-      <DietMacroRings meals={optimisticMeals} user={user} />
+      <DietMacroRings meals={isFutureDate ? optimisticMeals : optimisticMeals.filter((meal:any) => !meal.planned)} user={user} planned={isFutureDate} />
       
       <MealSearchModal
+        userId={user.id}
         isFutureDate={isFutureDate}
         selectedDateStr={targetDateStr}
         recentFoods={recentFoods}
@@ -32,3 +33,4 @@ export function DietTrackerClient({
     </>
   );
 }
+

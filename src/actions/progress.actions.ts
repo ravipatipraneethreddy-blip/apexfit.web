@@ -1,5 +1,8 @@
 "use server";
 
+import { calculateTDEE } from "@/lib/tdee";
+import { numeric } from "@/lib/validation";
+import { getUserTimezone, dateKey } from "@/lib/timezone";
 import { prisma } from "@/lib/prisma";
 import { getUserProfile } from "./user.actions";
 import { revalidatePath } from "next/cache";
@@ -27,10 +30,11 @@ export async function getProgressData() {
     orderBy: { date: "asc" },
   });
 
+  const timezone = await getUserTimezone();
   // Group meals by day
   const dailyStats: Record<string, any> = {};
   meals.forEach(m => {
-    const d = new Date(m.date).toLocaleDateString();
+    const d = dateKey(m.date, timezone);
     if (!dailyStats[d]) {
       dailyStats[d] = {
         date: d,
@@ -50,7 +54,7 @@ export async function getProgressData() {
 
   return {
     weightLogs: rawWeights.map((w) => ({
-      date: new Date(w.date).toLocaleDateString(),
+      date: w.date.toISOString(),
       weight: w.weight,
       photoUrl: w.photoUrl,
     })),
@@ -68,7 +72,7 @@ export async function logWeight(formData: FormData) {
   }
 
   const weightStr = formData.get("weight") as string;
-  const weight = parseFloat(weightStr);
+  const weight = numeric(weightStr, "Weight", 20, 500);
   const photo = formData.get("photo") as string | null;
 
   if (!weight || isNaN(weight) || weight <= 0) {
@@ -79,7 +83,7 @@ export async function logWeight(formData: FormData) {
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
-        data: { weight },
+        data: { weight, ...(() => { const t = calculateTDEE({...user, weight, gender: user.gender || "MALE"}); return {targetCalories:t.calories,targetProtein:t.protein,targetCarbs:t.carbs,targetFats:t.fats}; })() },
       }),
       prisma.progressLog.create({
         data: {
@@ -100,3 +104,4 @@ export async function logWeight(formData: FormData) {
     return { error: "Failed to log weight" };
   }
 }
+

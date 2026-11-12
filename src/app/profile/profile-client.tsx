@@ -1,5 +1,7 @@
 "use client";
 
+import { ReminderSettings } from "@/components/reminders";
+import { useToast } from "@/components/toast";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Save, Loader2, Flame, Dumbbell, Calendar, Mail, Weight, Target, LogOut, Utensils, Moon, Sun, Award, Download } from "lucide-react";
@@ -34,6 +36,7 @@ const ACTIVITY_LEVELS = [
 
 export default function ProfileClient({ user, stats, earnedBadges = [] }: { user: any; stats: any; earnedBadges?: string[] }) {
   const router = useRouter();
+  const {toast} = useToast();
   const { theme, setTheme } = useTheme();
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -49,30 +52,6 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
     activityLevel: user.activityLevel || "MODERATE",
   });
 
-  const [pushEnabled, setPushEnabled] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPushEnabled(Notification.permission === "granted");
-    }
-  }, []);
-
-  const handleEnablePush = async () => {
-    if (!("Notification" in window)) {
-      alert("This browser does not support push notifications.");
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      setPushEnabled(true);
-      // In a real app we'd subscribe to push manager and save the keys to the backend
-      // navigator.serviceWorker.ready.then(reg => reg.pushManager.subscribe(...))
-      alert("Push notifications enabled!");
-    } else {
-      alert("Permission denied. You can enable them in site settings.");
-    }
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     setSaved(false);
@@ -81,9 +60,10 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
       Object.entries(form).forEach(([k, v]) => formData.append(k, v));
       await updateUserProfile(formData);
       setSaved(true);
+      router.refresh();
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      console.error(e);
+      toast(e instanceof Error ? e.message : "Your changes were not saved.", "error");
     }
     setIsSaving(false);
   };
@@ -266,25 +246,7 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
           </motion.div>
         )}
 
-        {/* Push Notifications Setup */}
-        <motion.div
-           initial={{ opacity: 0, y: 10 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.18 }}
-           className="glass-panel rounded-2xl p-4 mb-6 flex items-center justify-between"
-        >
-          <div>
-            <h3 className="font-semibold text-sm">Push Notifications</h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Let the AI coach remind you to log meals.</p>
-          </div>
-          <button
-            onClick={handleEnablePush}
-            disabled={pushEnabled}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition ${pushEnabled ? "bg-emerald-400/10 text-emerald-400" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
-          >
-            {pushEnabled ? "Enabled" : "Enable Reminders"}
-          </button>
-        </motion.div>
+        <ReminderSettings userId={user.id} />
 
         {/* Edit Form */}
         <motion.div
@@ -450,10 +412,11 @@ export default function ProfileClient({ user, stats, earnedBadges = [] }: { user
         {/* App Info */}
         <div className="text-center py-4">
           <p className="text-xs text-muted-foreground/50">
-            Apex<span className="text-primary/50">Fit</span> v0.2.0 • AI Personal Coach
+            Apex<span className="text-primary/50">Fit</span> v0.2.0 • Personal Coach
           </p>
         </div>
       </div>
     </div>
   );
 }
+
