@@ -1,17 +1,19 @@
 "use server";
 
+import { numeric } from "@/lib/validation";
+import { getUserTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone } from "@/lib/timezone";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function logWater(amountMl: number) {
   const session = await getSession();
-  if (!session) return { error: "Unauthorized" };
+  if (!session) throw new Error("Unauthorized");
 
   await prisma.waterLog.create({
     data: {
       userId: session.userId,
-      amount: amountMl,
+      amount: numeric(amountMl, "Water amount", 1, 5000, true),
     },
   });
 
@@ -23,13 +25,14 @@ export async function getTodaysWater(): Promise<{ totalMl: number; logs: { id: s
   const session = await getSession();
   if (!session) return { totalMl: 0, logs: [] };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const timezone = await getUserTimezone();
+  const today = getStartOfDayInTimezone(timezone);
+  const tomorrow = getEndOfDayInTimezone(timezone);
 
   const logs = await prisma.waterLog.findMany({
     where: {
       userId: session.userId,
-      loggedAt: { gte: today },
+      loggedAt: { gte: today, lt: tomorrow },
     },
     orderBy: { loggedAt: "desc" },
   });
@@ -44,18 +47,20 @@ export async function getTodaysWater(): Promise<{ totalMl: number; logs: { id: s
 
 export async function resetWater() {
   const session = await getSession();
-  if (!session) return { error: "Unauthorized" };
+  if (!session) throw new Error("Unauthorized");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const timezone = await getUserTimezone();
+  const today = getStartOfDayInTimezone(timezone);
+  const tomorrow = getEndOfDayInTimezone(timezone);
 
   await prisma.waterLog.deleteMany({
     where: {
       userId: session.userId,
-      loggedAt: { gte: today },
+      loggedAt: { gte: today, lt: tomorrow },
     },
   });
 
   revalidatePath("/");
   return { success: true };
 }
+

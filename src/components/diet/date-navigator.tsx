@@ -1,27 +1,19 @@
 "use client";
 
+import { shiftDate } from "@/lib/dates";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export function DateNavigator({ initialDate }: { initialDate: string }) {
+export function DateNavigator({ initialDate, today }: { initialDate: string; today: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const dateStr = searchParams.get("date") || initialDate;
-  const currentDate = new Date(dateStr);
+  const dateStr = initialDate;
+  const currentDate = new Date(dateStr + "T12:00:00Z");
 
-  const isToday = new Date().toDateString() === currentDate.toDateString();
+  const isToday = dateStr === today;
 
-  const handlePrevDay = () => {
-    const prev = new Date(currentDate);
-    prev.setDate(prev.getDate() - 1);
-    router.push(`/diet?date=${prev.toISOString().substring(0, 10)}`, { scroll: false });
-  };
-
-  const handleNextDay = () => {
-    const next = new Date(currentDate);
-    next.setDate(next.getDate() + 1);
-    router.push(`/diet?date=${next.toISOString().substring(0, 10)}`, { scroll: false });
-  };
+  const handlePrevDay = () => router.push(`/diet?date=${shiftDate(dateStr, -1)}`, {scroll:false});
+  const handleNextDay = () => router.push(`/diet?date=${shiftDate(dateStr, 1)}`, {scroll:false});
 
   const handleToday = () => {
     router.push(`/diet`, { scroll: false });
@@ -34,7 +26,7 @@ export function DateNavigator({ initialDate }: { initialDate: string }) {
       </button>
       <div className="flex flex-col items-center">
         <span className="font-bold tracking-tight">
-          {isToday ? "Today" : currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+          {isToday ? "Today" : currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}
         </span>
         {!isToday && (
           <button onClick={handleToday} className="text-[10px] text-primary font-bold uppercase tracking-wider hover:underline mt-0.5 relative z-10">
@@ -48,3 +40,4 @@ export function DateNavigator({ initialDate }: { initialDate: string }) {
     </div>
   );
 }
+

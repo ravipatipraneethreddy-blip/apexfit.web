@@ -1,5 +1,6 @@
 "use client";
 
+import { saveEntry } from "@/lib/offline-queue";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Plus, Trash2, Check, Loader2, Dumbbell, ChevronDown, Timer as TimerIcon, X, Play, Pause, RotateCcw, TrendingUp, Save, Trophy } from "lucide-react";
@@ -166,6 +167,12 @@ export default function WorkoutLoggerClient({
   const router = useRouter();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const draftKey = `apexfit-draft:${user.id}:${initialTemplateId || initialTemplateName || "Custom"}`;
+  const initialised = useRef(false);
+  const saved = useRef(false);
+  const clientId = useRef<string>("");
+  const entryDate = useRef<string>("");
+  const [draftReady, setDraftReady] = useState(false);
   const [workoutName, setWorkoutName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
@@ -188,6 +195,7 @@ export default function WorkoutLoggerClient({
   }, [workoutStarted, startTime]);
 
   const handleStartWorkout = () => {
+    entryDate.current = new Date().toISOString();
     setWorkoutStarted(true);
     setStartTime(Date.now());
   };
@@ -202,19 +210,16 @@ export default function WorkoutLoggerClient({
 
   const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
 
-  const selectTemplate = (template: (typeof WORKOUT_TEMPLATES)[0]) => {
+  const selectTemplate = (template: (typeof WORKOUT_TEMPLATES)[0] & {details?: {name:string;sets:number;reps:number}[]}) => {
     setWorkoutName(template.name === "Custom" ? "" : template.name);
     let id = nextId;
     if (template.exercises.length > 0) {
       const newExercises: ExerciseEntry[] = template.exercises.map((name) => {
         const prev = previousData[name];
+        const detail = template.details?.find(d => d.name === name);
         const ex: ExerciseEntry = {
           id: id++, name,
-          sets: [
-            { id: id++, weight: prev?.weight || 0, reps: prev?.reps || 10, done: false },
-            { id: id++, weight: prev?.weight || 0, reps: prev?.reps || 10, done: false },
-            { id: id++, weight: prev?.weight || 0, reps: prev?.reps || 10, done: false },
-          ],
+          sets: Array.from({length: detail?.sets || prev?.sets || 3}, (_, i) => ({id:id++, weight:prev?.setDetails?.[i]?.weight ?? prev?.weight ?? 0, reps:detail?.reps || prev?.setDetails?.[i]?.reps || prev?.reps || 10, done:false})),
         };
         return ex;
       });
@@ -282,14 +287,19 @@ export default function WorkoutLoggerClient({
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
 
   const handleCompleteWorkout = async () => {
-    if (totalCompletedSets === 0) return;
+    if (isSaving || totalCompletedSets === 0) return;
     const validExercises = exercises.filter((ex) => ex.name.trim() && ex.sets.some((s) => s.done));
     if (validExercises.length === 0) return;
+    if(validExercises.length>30 || validExercises.some(ex=>ex.name.trim().length>120 || ex.sets.filter(s=>s.done).length>50 || ex.sets.some(s=>s.done && (!Number.isFinite(s.weight)||s.weight<0||s.weight>1500||!Number.isInteger(s.reps)||s.reps<1||s.reps>200)))) {
+      toast('Check completed sets: reps must be 1–200 and weight 0–1500 kg. A workout supports up to 30 exercises and 50 sets per exercise.','error');return;
+    }
 
     setIsSaving(true);
     try {
       const formData = new FormData();
       formData.append("name", workoutName || "Custom Workout");
+      formData.set("clientId", clientId.current);
+      formData.set("date", entryDate.current);
       const payload = validExercises.map((ex) => {
         const done = ex.sets.filter((s) => s.done);
         return {
@@ -301,31 +311,10 @@ export default function WorkoutLoggerClient({
         };
       });
       formData.append("exercises", JSON.stringify(payload));
-      try {
-        if (!navigator.onLine) throw new Error("Offline");
-        await logWorkout(formData);
-      } catch (err) {
-        if (!navigator.onLine || String(err).includes("Failed to fetch") || String(err).includes("Offline")) {
-          const queue = JSON.parse(localStorage.getItem("apexfit-offline-queue") || "[]");
-          const wId = "workout-optimistic-" + Date.now();
-          const existingIndex = queue.findIndex((q: any) => q.id === wId);
-          const queueItem = {
-            id: wId,
-            timestamp: Date.now(),
-            type: "WORKOUT",
-            formDataObj: Object.fromEntries(formData),
-            status: "PENDING",
-            retryCount: 0
-          };
-          if (existingIndex === -1) queue.push(queueItem);
-          const trimmed = queue.slice(-30);
-          localStorage.setItem("apexfit-offline-queue", JSON.stringify(trimmed));
-        } else {
-          throw err;
-        }
-      }
-
-      toast("Workout logged successfully! Great job.", "success");
+      const status = await saveEntry(user.id, "WORKOUT", formData, logWorkout);
+      saved.current = true;
+      localStorage.removeItem(draftKey);
+      toast(status === "synced" ? "Workout saved." : "Saved on this device. Retry sync if it stays pending.", status === "synced" ? "success" : "info");
       hapticSuccess();
 
       // 🎉 Celebration!
@@ -348,7 +337,7 @@ export default function WorkoutLoggerClient({
     if (validExercises.length === 0) return;
 
     try {
-      await saveWorkoutTemplate(workoutName, validExercises.map(ex => ex.name));
+      await saveWorkoutTemplate(workoutName, validExercises.map(ex => ex.name), validExercises.map(ex => ({sets:ex.sets.length, reps:ex.sets[0]?.reps || 10})));
       toast("Saved as template!", "success");
     } catch (e) {
       console.error(e);
@@ -370,6 +359,31 @@ export default function WorkoutLoggerClient({
   const getPrev = (name: string) => previousData[name] || null;
 
   useEffect(() => {
+    if (initialised.current) return;
+    initialised.current = true;
+    clientId.current = crypto.randomUUID(); entryDate.current = new Date().toISOString();
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (Array.isArray(d.exercises) && d.exercises.length) {
+          setExercises(d.exercises); setWorkoutName(d.name); setNextId(d.nextId); setHasSelectedTemplate(true);
+          setStartTime(d.startTime); setWorkoutStarted(!!d.startTime);
+          clientId.current=d.clientId || clientId.current; entryDate.current=d.date || entryDate.current;
+          setDraftReady(true); return;
+        }
+      }
+      if (initialTemplateName === "Recommended") {
+        const plan=JSON.parse(localStorage.getItem('apexfit-coach-session:'+user.id)||'null');
+        if (plan?.exercises?.length) {
+          let id=100;
+          setWorkoutName(plan.name);
+          setExercises(plan.exercises.map((ex:{name:string;sets:number;weight:number;reps:number})=>({id:id++,name:ex.name,sets:Array.from({length:ex.sets},()=>({id:id++,weight:ex.weight,reps:ex.reps,done:false}))})));
+          setNextId(id); setHasSelectedTemplate(true); setDraftReady(true); return;
+        }
+      }
+    } catch { toast("Could not restore the draft. Your saved workouts are unaffected.", "error"); }
+    setDraftReady(true);
     // If a template is passed in, initialize it!
     if (initialTemplateName) {
       if (initialTemplateName === "Custom") {
@@ -386,13 +400,19 @@ export default function WorkoutLoggerClient({
         setNextId(id + 4);
       } else {
         const template = WORKOUT_TEMPLATES.find(t => t.name === initialTemplateName) || dbTemplates?.find((t: any) => t.name === initialTemplateName);
-        if (template) selectTemplate(template);
+        selectTemplate(template || WORKOUT_TEMPLATES[WORKOUT_TEMPLATES.length - 1]);
       }
     } else if (initialTemplateId && dbTemplates) {
       const template = dbTemplates.find((t: any) => t.id === initialTemplateId);
-      if (template) selectTemplate(template);
+      selectTemplate(template || WORKOUT_TEMPLATES[WORKOUT_TEMPLATES.length - 1]);
     }
   }, [initialTemplateName, initialTemplateId, dbTemplates]);
+
+  useEffect(() => {
+    if (!draftReady || saved.current || !exercises.length) return;
+    try { localStorage.setItem(draftKey, JSON.stringify({name:workoutName,exercises,nextId,startTime,clientId:clientId.current,date:entryDate.current})); }
+    catch { toast("Draft could not be saved on this device.", "error"); }
+  }, [draftReady, draftKey, exercises, workoutName, nextId, startTime]);
 
   // If waiting to initialize, show nothing or skeleton
   if (!exercises.length && (initialTemplateName || initialTemplateId)) {
@@ -484,7 +504,7 @@ export default function WorkoutLoggerClient({
           <div className="absolute top-0 left-0 w-1 h-full bg-primary neon-glow" />
           <div className="flex gap-3 pl-2">
             <p className="text-sm text-foreground/90 leading-relaxed">
-              <strong className="text-primary">Coach AI:</strong> Focus on progressive overload. Try to beat your previous session by adding weight or reps. Rest 2-3 min between heavy compounds.
+              <strong className="text-primary">Coach:</strong> Focus on progressive overload. Add weight or reps only when you meet your rep target with controlled form. Rest 2-3 min between heavy compounds.
             </p>
           </div>
         </motion.div>
@@ -574,3 +594,4 @@ export default function WorkoutLoggerClient({
     </div>
   );
 }
+

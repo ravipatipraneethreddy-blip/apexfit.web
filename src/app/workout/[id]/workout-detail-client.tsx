@@ -1,12 +1,14 @@
 "use client";
 
+import { setDetails } from "@/lib/coach";
+import { EditWorkout } from "@/components/workout/edit-workout";
 import { motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Calendar, Weight, Hash } from "lucide-react";
 import Link from "next/link";
 
 export default function WorkoutDetailClient({ workout }: { workout: any }) {
   const totalVolume = (workout.exercises || []).reduce(
-    (sum: number, ex: any) => sum + ex.sets * ex.reps * ex.weight,
+    (sum: number, ex: any) => sum + setDetails(ex).reduce((v,s)=>v+s.weight*s.reps,0),
     0
   );
 
@@ -24,6 +26,7 @@ export default function WorkoutDetailClient({ workout }: { workout: any }) {
           <div className="w-9" />
         </header>
 
+        <EditWorkout workout={workout} />
         {/* Workout Meta */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -84,18 +87,14 @@ export default function WorkoutDetailClient({ workout }: { workout: any }) {
                   <span className="text-right">Weight</span>
                 </div>
                 <div className="px-3 py-2.5">
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-sm font-bold">{ex.sets}</span>
-                    <span className="text-sm font-bold text-center">{ex.reps}</span>
-                    <span className="text-sm font-bold text-right text-primary">{ex.weight} kg</span>
-                  </div>
+                  {setDetails(ex).map((set,index)=><div key={index} className="grid grid-cols-3 gap-2 py-1"><span className="text-sm">{index+1}</span><span className="text-sm text-center">{set.reps}</span><span className="text-sm text-right text-primary">{set.weight} kg</span></div>)}
                 </div>
               </div>
 
               {/* Volume */}
               <div className="flex justify-end mt-2">
                 <span className="text-[10px] text-muted-foreground">
-                  Vol: {(ex.sets * ex.reps * ex.weight).toLocaleString()} kg
+                  Vol: {setDetails(ex).reduce((v,s)=>v+s.weight*s.reps,0).toLocaleString()} kg
                 </span>
               </div>
             </motion.div>
@@ -105,3 +104,4 @@ export default function WorkoutDetailClient({ workout }: { workout: any }) {
     </div>
   );
 }
+

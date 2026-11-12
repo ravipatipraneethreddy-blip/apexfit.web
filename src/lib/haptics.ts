@@ -20,11 +20,10 @@ const VIBRATE_PATTERNS: Record<HapticStyle, number[]> = {
 export async function haptic(style: HapticStyle = "medium") {
   try {
     // Try Capacitor Haptics first (native)
-    const { Haptics, ImpactStyle, NotificationType } = await import("@capacitor/haptics").catch(() => ({
-      Haptics: null,
-      ImpactStyle: null,
-      NotificationType: null,
-    }));
+    const { registerPlugin, Capacitor } = await import("@capacitor/core");
+    const Haptics = Capacitor.isNativePlatform() ? registerPlugin<{impact(options:{style:string}):Promise<void>; notification(options:{type:string}):Promise<void>}>("Haptics") : null;
+    const ImpactStyle = {Light:"LIGHT",Medium:"MEDIUM",Heavy:"HEAVY"};
+    const NotificationType = {Success:"SUCCESS",Warning:"WARNING",Error:"ERROR"};
 
     if (Haptics) {
       if (style === "success" || style === "warning" || style === "error") {
@@ -69,3 +68,4 @@ export function hapticTap() {
 export function hapticSuccess() {
   haptic("success");
 }
+

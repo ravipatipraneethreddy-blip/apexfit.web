@@ -260,7 +260,7 @@ export default function ReportsClient({ user, weeklyReport, monthlyReport }: { u
             <div className="glass-panel p-4 rounded-2xl">
               <div className="flex items-center gap-1.5 mb-1">
                 <Award className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Best Day</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Highest logged intake</span>
               </div>
               <p className="text-lg font-bold text-emerald-400">{report.bestDay.calories} <span className="text-xs text-muted-foreground font-normal">kcal</span></p>
               <p className="text-[10px] text-muted-foreground">{report.bestDay.day} {report.bestDay.shortDate}</p>
@@ -268,7 +268,7 @@ export default function ReportsClient({ user, weeklyReport, monthlyReport }: { u
             <div className="glass-panel p-4 rounded-2xl">
               <div className="flex items-center gap-1.5 mb-1">
                 <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Lowest Day</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Lowest logged intake</span>
               </div>
               <p className="text-lg font-bold text-orange-400">{report.worstDay.calories} <span className="text-xs text-muted-foreground font-normal">kcal</span></p>
               <p className="text-[10px] text-muted-foreground">{report.worstDay.day} {report.worstDay.shortDate}</p>
@@ -279,3 +279,4 @@ export default function ReportsClient({ user, weeklyReport, monthlyReport }: { u
     </div>
   );
 }
+

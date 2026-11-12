@@ -98,7 +98,7 @@ export default function RegisterPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  minLength={6}
+                  minLength={8}
                   placeholder="Min. 6 characters"
                   className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:border-primary transition"
                 />
@@ -120,7 +120,7 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   type={showPassword ? "text" : "password"}
                   required
-                  minLength={6}
+                  minLength={8}
                   placeholder="Re-enter password"
                   className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-primary transition"
                 />
@@ -147,3 +147,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+

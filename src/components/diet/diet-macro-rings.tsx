@@ -23,7 +23,7 @@ function MacroRing({
   );
 }
 
-export function DietMacroRings({ meals, user }: { meals: any[]; user: any }) {
+export function DietMacroRings({ meals, user, planned = false }: { meals: any[]; user: any; planned?: boolean }) {
   const eatenCals = Math.round(meals.reduce((sum: number, m: any) => sum + m.calories, 0));
   const eatenPro = r1(meals.reduce((sum: number, m: any) => sum + m.protein, 0));
   const eatenCarbs = r1(meals.reduce((sum: number, m: any) => sum + (m.carbs || 0), 0));
@@ -35,11 +35,11 @@ export function DietMacroRings({ meals, user }: { meals: any[]; user: any }) {
   const TARGET_FAT = user.targetFats || 65;
 
   return (
-    <div className="glass-panel p-6 rounded-3xl mb-8 flex items-center justify-between shadow-lg neon-glow relative overflow-hidden">
+    <div className="glass-panel p-6 rounded-3xl mb-8 flex flex-col gap-5 shadow-lg neon-glow relative overflow-hidden">
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
       
       <div className="flex-1">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Calories</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">{planned ? 'Planned calories' : 'Calories eaten'}</h2>
         <div className="flex items-baseline gap-1 mb-1">
           <span className="text-4xl font-black tracking-tighter text-foreground">{eatenCals}</span>
           <span className="text-sm text-muted-foreground font-medium">/ {TARGET_CALS} kcal</span>
@@ -57,7 +57,7 @@ export function DietMacroRings({ meals, user }: { meals: any[]; user: any }) {
         </div>
       </div>
       
-      <div className="flex gap-4 ml-8 border-l border-border/50 pl-8">
+      <div className="grid grid-cols-3 gap-3 border-t border-border/50 pt-5">
         <MacroRing value={eatenPro} max={TARGET_PRO} color="#3b82f6" label="Protein" unit="g" />
         <MacroRing value={eatenCarbs} max={TARGET_CARBS} color="#eab308" label="Carbs" unit="g" />
         <MacroRing value={eatenFats} max={TARGET_FAT} color="#10b981" label="Fats" unit="g" />
@@ -65,3 +65,4 @@ export function DietMacroRings({ meals, user }: { meals: any[]; user: any }) {
     </div>
   );
 }
+

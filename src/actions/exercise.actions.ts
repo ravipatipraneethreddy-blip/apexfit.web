@@ -1,9 +1,11 @@
 "use server";
 
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { FALLBACK_EXERCISES } from "@/data/fallback-exercises";
 
 export async function checkAndSeedExercises() {
+  if (!await getSession()) throw new Error("Unauthorized");
   try {
     // 1. Check if we already have exercises seeded locally
     const count = await prisma.cachedExercise.count();
@@ -72,6 +74,8 @@ export async function checkAndSeedExercises() {
 }
 
 export async function getExercises(query: string = "", bodyPart: string = "All", limit: number = 50) {
+  limit = Math.max(1, Math.min(100, Math.floor(limit) || 50));
+  query = query.slice(0, 100);
   try {
     const whereClause: any = {};
     if (query) {
@@ -105,3 +109,4 @@ export async function getAllBodyParts() {
     return [];
   }
 }
+

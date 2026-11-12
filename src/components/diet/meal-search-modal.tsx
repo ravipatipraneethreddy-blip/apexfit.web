@@ -2,7 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Search, ScanLine, X, Plus, Minus, BrainCircuit, Database, HelpCircle, Edit3, Check } from "lucide-react";
+import { Loader2, Minus, Database, HelpCircle, Edit3, Check } from "lucide-react";
+import { saveEntry } from "@/lib/offline-queue";
+import { useToast } from "@/components/toast";
 import { logMeal } from "@/actions/diet.actions";
 import { lookupNutrition, getFoodSuggestions, type NutritionResult } from "@/actions/nutrition.actions";
 import { useRouter } from "next/navigation";
@@ -11,9 +13,8 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 
 function SourceBadge({ source }: { source: string }) {
   const config = {
-    ai: { icon: BrainCircuit, label: "AI Estimated", color: "text-purple-400 bg-purple-400/10" },
-    database: { icon: Database, label: "Verified", color: "text-emerald-400 bg-emerald-400/10" },
-    estimate: { icon: HelpCircle, label: "Rough Estimate", color: "text-yellow-400 bg-yellow-400/10" },
+    database: { icon: Database, label: "Database estimate", color: "text-emerald-400 bg-emerald-400/10" },
+    estimate: { icon: HelpCircle, label: "Manual entry", color: "text-yellow-400 bg-yellow-400/10" },
   }[source] || { icon: HelpCircle, label: "Unknown", color: "text-muted-foreground bg-secondary" };
   const Icon = config.icon;
   return (
@@ -25,17 +26,22 @@ function SourceBadge({ source }: { source: string }) {
 }
 
 export function MealSearchModal({
+  userId,
   isFutureDate,
   selectedDateStr,
   recentFoods = [],
   onOptimisticLog,
 }: {
+  userId: string;
   isFutureDate: boolean;
   selectedDateStr: string;
   recentFoods?: any[];
   onOptimisticLog?: (meal: any) => void;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
+  const entryId = useRef<string | null>(null);
+  const searchVersion = useRef(0);
   
   const [searchInput, setSearchInput] = useState("");
   const [isLooking, setIsLooking] = useState(false);
@@ -74,20 +80,21 @@ export function MealSearchModal({
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("apexfit-quick-adds");
+      const saved = localStorage.getItem("apexfit-quick-adds:" + userId);
       if (saved) setCustomQuickAdds(JSON.parse(saved));
-      const del = localStorage.getItem("apexfit-quick-deleted");
+      const del = localStorage.getItem("apexfit-quick-deleted:" + userId);
       if (del) setDeletedDefaults(JSON.parse(del));
     } catch {}
-  }, []);
+    return () => {searchVersion.current++;if(debounceRef.current)clearTimeout(debounceRef.current);};
+  }, [userId]);
 
   const saveCustomQuickAdds = (items: typeof customQuickAdds) => {
     setCustomQuickAdds(items);
-    localStorage.setItem("apexfit-quick-adds", JSON.stringify(items));
+    try {localStorage.setItem("apexfit-quick-adds:" + userId, JSON.stringify(items));}catch{toast('Quick adds could not be saved on this device.','error');}
   };
   const saveDeletedDefaults = (items: string[]) => {
     setDeletedDefaults(items);
-    localStorage.setItem("apexfit-quick-deleted", JSON.stringify(items));
+    try {localStorage.setItem("apexfit-quick-deleted:" + userId, JSON.stringify(items));}catch{toast('Quick adds could not be saved on this device.','error');}
   };
 
   const handleAddQuickItem = () => {
@@ -113,27 +120,33 @@ export function MealSearchModal({
   else if (activeQuickCategory !== "All") filteredQuickAdds = allQuickAddItems.filter((i) => i.category === activeQuickCategory);
 
   const handleSearchChange = useCallback((value: string) => {
+    const version = ++searchVersion.current;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setSearchInput(value);
     setLookupResult(null);
+    setIsLooking(false);setIsEditing(false);
     if (!value.trim()) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-    if (debounceRef.current) clearTimeout(debounceRef.current);
     setShowSuggestions(true);
     debounceRef.current = setTimeout(async () => {
-      const results = await getFoodSuggestions(value);
-      setSuggestions(results);
+      try {const results = await getFoodSuggestions(value);if(version===searchVersion.current)setSuggestions(results);}
+      catch {if(version===searchVersion.current)setSuggestions([]);}
     }, 400);
   }, []);
 
-  const handleLookup = async () => {
-    if (!searchInput.trim()) return;
+  const loadFood = async (query:string) => {
+    if (!query.trim()) return;
+    const version=++searchVersion.current;
+    if(debounceRef.current)clearTimeout(debounceRef.current);
+    setSearchInput(query);setLookupResult(null);setIsEditing(false);
     setShowSuggestions(false);
     setIsLooking(true);
     try {
-      const result = await lookupNutrition(searchInput);
+      const result = await lookupNutrition(query);
+      if(version!==searchVersion.current)return;
       setLookupResult(result);
       setEditValues({
         calories: result.calories,
@@ -143,10 +156,15 @@ export function MealSearchModal({
         fiber: result.fiber,
       });
     } catch {
-      //
+      if(version!==searchVersion.current)return;
+      toast("No complete match. Enter the nutrition from your label manually.", "error");
+      setLookupResult({foodName: query, quantity: "Manual entry", calories:0, protein:0, carbs:0, fats:0, fiber:0, source:"estimate"});
+      setEditValues({calories:0,protein:0,carbs:0,fats:0,fiber:0});
+      setIsEditing(true);
     }
-    setIsLooking(false);
+    if(version===searchVersion.current)setIsLooking(false);
   };
+  const handleLookup = () => loadFood(searchInput);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleLookup();
@@ -163,60 +181,31 @@ export function MealSearchModal({
   }, []);
 
   const handleLog = async () => {
-    if (!lookupResult) return;
+    if (!lookupResult || isLogging) return;
+    const maxValues={calories:20000,protein:2000,carbs:3000,fats:2000,fiber:500};
+    if(Object.entries(editValues).some(([k,v])=>!Number.isFinite(v)||v<0||v>maxValues[k as keyof typeof maxValues])||!Number.isInteger(editValues.calories)) {
+      toast('Enter valid, non-negative nutrition values and whole-number calories.','error');return;
+    }
     setIsLogging(true);
     const formData = new FormData();
     formData.append("foodName", lookupResult.foodName);
-    formData.append("calories", (isEditing ? editValues.calories : lookupResult.calories).toString());
-    formData.append("protein", (isEditing ? editValues.protein : lookupResult.protein).toString());
-    formData.append("carbs", (isEditing ? editValues.carbs : lookupResult.carbs).toString());
-    formData.append("fats", (isEditing ? editValues.fats : lookupResult.fats).toString());
-    formData.append("fiber", (isEditing ? editValues.fiber : lookupResult.fiber).toString());
+    formData.append("calories", editValues.calories.toString());
+    formData.append("protein", editValues.protein.toString());
+    formData.append("carbs", editValues.carbs.toString());
+    formData.append("fats", editValues.fats.toString());
+    formData.append("fiber", editValues.fiber.toString());
     formData.append("planned", isFutureDate ? "true" : "false");
     formData.append("date", selectedDateStr);
     try {
-      const mealPayload = {
-        id: "optimistic-" + Date.now(),
-        foodName: lookupResult.foodName,
-        calories: Number(formData.get("calories")),
-        protein: Number(formData.get("protein")),
-        carbs: Number(formData.get("carbs")),
-        fats: Number(formData.get("fats")),
-        fiber: Number(formData.get("fiber")),
-        pending: true,
-      };
-
-      if (onOptimisticLog) onOptimisticLog(mealPayload);
-
-      try {
-        if (!navigator.onLine) throw new Error("Offline");
-        await logMeal(formData);
-      } catch (err) {
-        if (!navigator.onLine || String(err).includes("Failed to fetch") || String(err).includes("Offline")) {
-          // Push to offline queue
-          const queue = JSON.parse(localStorage.getItem("apexfit-offline-queue") || "[]");
-          const existingIndex = queue.findIndex((q: any) => q.id === mealPayload.id);
-          const queueItem = {
-            id: mealPayload.id,
-            timestamp: Date.now(),
-            type: "MEAL",
-            formDataObj: Object.fromEntries(formData),
-            status: "PENDING",
-            retryCount: 0
-          };
-          if (existingIndex === -1) queue.push(queueItem);
-          const trimmed = queue.slice(-30);
-          localStorage.setItem("apexfit-offline-queue", JSON.stringify(trimmed));
-        } else {
-          console.error(err);
-        }
-      }
-
-      setLookupResult(null);
-      setSearchInput("");
-      setIsEditing(false);
+      entryId.current ||= crypto.randomUUID();
+      formData.set("clientId", entryId.current);
+      const status = await saveEntry(userId, "MEAL", formData, logMeal);
+      toast(status === "synced" ? "Meal saved." : "Saved on this device. Use Retry sync if it stays pending.", status === "synced" ? "success" : "info");
+      entryId.current = null;
+      setLookupResult(null); setSearchInput(""); setIsEditing(false);
+      router.refresh();
     } catch (err) {
-      console.error(err);
+      toast(err instanceof Error ? err.message : "Meal was not saved. Please retry.", "error");
     }
     setIsLogging(false);
   };
@@ -228,6 +217,7 @@ export function MealSearchModal({
           <div className="relative flex-1" ref={suggestionsRef}>
             <input
               type="text"
+              maxLength={200}
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -253,19 +243,7 @@ export function MealSearchModal({
                   {suggestions.map((s, i) => (
                     <button
                       key={`${s.name}-${i}`}
-                      onClick={() => {
-                        setSearchInput(s.name);
-                        setShowSuggestions(false);
-                        setIsLooking(true);
-                        lookupNutrition(s.name).then((result) => {
-                          setLookupResult(result);
-                          setEditValues({
-                            calories: result.calories, protein: result.protein, carbs: result.carbs,
-                            fats: result.fats, fiber: result.fiber,
-                          });
-                          setIsLooking(false);
-                        }).catch(() => setIsLooking(false));
-                      }}
+                      onClick={() => void loadFood(s.name)}
                       className="w-full px-4 py-3 flex items-center justify-between hover:bg-primary/5 transition text-left border-b border-border/30 last:border-0"
                     >
                       <div>
@@ -281,7 +259,7 @@ export function MealSearchModal({
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5 px-1 mb-4">
-          Uses AI + food database • Just type naturally like &quot;2 rotis with dal&quot;
+          Uses the built-in food database • Just type naturally like &quot;2 rotis with dal&quot;
         </p>
       </div>
 
@@ -314,13 +292,15 @@ export function MealSearchModal({
                     {isEditing ? (
                       <input
                         type="number"
+                        min="0"
+                        step={m.key==='calories'?1:0.1}
                         value={editValues[m.key as keyof typeof editValues] || ""}
-                        onChange={(e) => setEditValues({ ...editValues, [m.key]: Number(e.target.value) })}
+                        onChange={(e) => {setEditValues({ ...editValues, [m.key]: Number(e.target.value) });setLookupResult({...lookupResult,source:'estimate'});}}
                         className="w-full bg-background border border-border rounded-lg py-1 px-1 text-center text-sm font-bold focus:outline-none focus:border-primary"
                       />
                     ) : (
                       <p className={`text-lg font-bold ${m.color}`}>
-                        {r1(Number(lookupResult[m.key as keyof NutritionResult]) || 0)}
+                        {r1(editValues[m.key as keyof typeof editValues])}
                       </p>
                     )}
                     <p className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">{m.label}</p>
@@ -371,16 +351,9 @@ export function MealSearchModal({
               <button
                 onClick={() => {
                   if (isEditingQuickAdds) return;
-                  setSearchInput(item.label);
-                  setIsLooking(true);
-                  lookupNutrition(item.label).then((result) => {
-                    setLookupResult(result);
-                    setEditValues({
-                      calories: result.calories, protein: result.protein, carbs: result.carbs,
-                      fats: result.fats, fiber: result.fiber,
-                    });
-                    setIsLooking(false);
-                  }).catch(() => setIsLooking(false));
+                  const recent=item.category==='Recent' && recentFoods.find(f=>f.foodName===item.label);
+                  if(recent){searchVersion.current++;setSearchInput(item.label);setShowSuggestions(false);setIsEditing(false);setLookupResult({...recent,quantity:'Previously logged portion',source:'estimate'});setEditValues({calories:recent.calories,protein:recent.protein,carbs:recent.carbs,fats:recent.fats,fiber:recent.fiber||0});}
+                  else void loadFood(item.label);
                 }}
                 disabled={isLooking || isEditingQuickAdds}
                 className={`px-3 py-2 rounded-xl border bg-card flex items-center gap-1.5 text-xs font-medium transition ${isEditingQuickAdds ? "border-red-500/30 animate-pulse" : "border-border hover:border-primary/50 hover:bg-primary/5 disabled:opacity-50"}`}
@@ -394,3 +367,4 @@ export function MealSearchModal({
     </>
   );
 }
+

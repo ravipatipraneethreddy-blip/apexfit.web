@@ -1,11 +1,13 @@
 "use server";
 
+import { numeric, textValue, recordId, logDate, assertOwner } from "@/lib/validation";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath, unstable_cache } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { getUserProfile, checkAndUpdateStreak } from "./user.actions";
 import { isDbAvailable } from "./auth.actions";
 import { checkAndUnlockBadges } from "./achievements.actions";
 import {
+  startOfDate, shiftDate, dateKey,
   getStartOfDayInTimezone,
   getEndOfDayInTimezone,
   getStartOfWeekInTimezone,
@@ -15,7 +17,9 @@ export async function logMeal(formData: FormData) {
   const user = await getUserProfile();
   if (!user) throw new Error("User not found");
 
-  const foodName = formData.get("foodName") as string;
+  assertOwner(formData, user.id);
+  const id = recordId(formData, user.id);
+  const foodName = textValue(formData.get("foodName"), "Food name", 200);
   const calories = formData.get("calories") as string;
   const protein = formData.get("protein") as string;
   const carbs = formData.get("carbs") as string;
@@ -25,7 +29,7 @@ export async function logMeal(formData: FormData) {
   const dateStr = formData.get("date") as string;
 
   const isPlanned = plannedStr === "true";
-  const mealDate = dateStr ? new Date(dateStr) : new Date();
+  const mealDate = logDate(dateStr, isPlanned);
 
   if (!foodName || !calories || !protein || !carbs || !fats) {
     throw new Error("Missing required meal fields.");
@@ -38,16 +42,17 @@ export async function logMeal(formData: FormData) {
   }
 
   try {
-    await prisma!.mealLog.create({
-      data: {
-        userId: user.id,
+    await prisma!.mealLog.upsert({
+      where: { id }, update: {},
+      create: {
+        id, userId: user.id,
         foodName,
         date: mealDate,
-        calories: parseInt(calories, 10),
-        protein: parseFloat(protein),
-        carbs: parseFloat(carbs),
-        fats: parseFloat(fats),
-        fiber: parseFloat(fiberStr || "0"),
+        calories: numeric(calories, "calories", 0, 20000, true),
+        protein: numeric(protein, "protein", 0, 2000),
+        carbs: numeric(carbs, "carbs", 0, 3000),
+        fats: numeric(fats, "fats", 0, 2000),
+        fiber: numeric(fiberStr || "0", "Fiber", 0, 500),
         planned: isPlanned,
       },
     });
@@ -55,6 +60,7 @@ export async function logMeal(formData: FormData) {
     revalidatePath("/diet");
     revalidatePath("/");
     revalidatePath("/progress");
+    revalidatePath("/reports");
   } catch (err) {
     console.error("[ApexFit] Failed to log meal:", err);
     throw new Error("Failed to log meal.");
@@ -76,21 +82,21 @@ export async function logMeal(formData: FormData) {
 }
 
 export async function deleteMeal(mealId: string) {
-  const dbReady = await isDbAvailable();
-
-  if (!dbReady) {
-    return { success: false, error: "Database not available." };
-  }
-
-  try {
-    await prisma!.mealLog.delete({ where: { id: mealId } });
-    revalidatePath("/diet");
-    revalidatePath("/");
-  } catch (err) {
-    console.error("[ApexFit] Failed to delete meal:", err);
-  }
-
+  const user = await getUserProfile();
+  if (!user) throw new Error("Unauthorized");
+  const result = await prisma.mealLog.deleteMany({ where: { id: mealId, userId: user.id } });
+  if (!result.count) throw new Error("Meal not found");
+  await checkAndUpdateStreak(user.id);
+  for (const path of ["/diet", "/", "/progress", "/reports"]) revalidatePath(path);
   return { success: true };
+}
+
+export async function getMealsForDate(day: string, timezone: string) {
+  const user = await getUserProfile();
+  if (!user) return [];
+  const start = startOfDate(day, timezone);
+  const end = startOfDate(shiftDate(day, 1), timezone);
+  return prisma.mealLog.findMany({ where: { userId: user.id, date: { gte: start, lt: end } }, orderBy: { date: "desc" } });
 }
 
 export async function getTodaysMeals(timezone: string = "Asia/Kolkata") {
@@ -130,7 +136,7 @@ export async function getWeeklyMeals(timezone: string = "Asia/Kolkata") {
   }
 
   const startOfWeek = getStartOfWeekInTimezone(timezone);
-  const endOfWeek = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const endOfWeek = startOfDate(shiftDate(dateKey(startOfWeek, timezone), 7), timezone);
 
   try {
     const user = await getUserProfile();
@@ -150,7 +156,7 @@ export async function getWeeklyMeals(timezone: string = "Asia/Kolkata") {
   }
 }
 
-const getWeeklyNutritionSummaryInternal = async (timezone: string = "Asia/Kolkata") => {
+export const getWeeklyNutritionSummary = async (timezone: string = "Asia/Kolkata") => {
   const now = new Date();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -159,11 +165,10 @@ const getWeeklyNutritionSummaryInternal = async (timezone: string = "Asia/Kolkat
 
   // Generate zeroed-out 7-day data as default
   const emptyData = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(now.getTime() - (6 - i) * 86400000);
-    const dateKey = date.toLocaleDateString("en-CA", { timeZone: timezone });
+    const key = shiftDate(todayStr, i - 6);
     return {
-      day: dayNames[new Date(dateKey).getDay()],
-      date: dateKey,
+      day: dayNames[new Date(key + 'T12:00:00Z').getUTCDay()],
+      date: key,
       calories: 0,
       protein: 0,
       carbs: 0,
@@ -183,12 +188,13 @@ const getWeeklyNutritionSummaryInternal = async (timezone: string = "Asia/Kolkat
 
     // Go back 7 days from start of today in user's timezone
     const startOfToday = getStartOfDayInTimezone(timezone);
-    const weekAgo = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekAgo = startOfDate(shiftDate(dateKey(startOfToday, timezone), -6), timezone);
 
     const meals = await prisma!.mealLog.findMany({
       where: {
         userId: user.id,
-        date: { gte: weekAgo },
+        date: { gte: weekAgo, lt: getEndOfDayInTimezone(timezone) },
+        planned: false,
       },
       orderBy: { date: "asc" },
     });
@@ -204,11 +210,10 @@ const getWeeklyNutritionSummaryInternal = async (timezone: string = "Asia/Kolkat
     }
 
     const result = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(now.getTime() - (6 - i) * 86400000);
-      const key = date.toLocaleDateString("en-CA", { timeZone: timezone });
+      const key = shiftDate(todayStr, i - 6);
       const dayMeals = grouped.get(key) || [];
       return {
-        day: dayNames[new Date(key).getDay()],
+        day: dayNames[new Date(key + 'T12:00:00Z').getUTCDay()],
         date: key,
         calories: dayMeals.reduce((s, m) => s + m.calories, 0),
         protein: Math.round(dayMeals.reduce((s, m) => s + m.protein, 0)),
@@ -223,11 +228,6 @@ const getWeeklyNutritionSummaryInternal = async (timezone: string = "Asia/Kolkat
   }
 };
 
-export const getWeeklyNutritionSummary = unstable_cache(
-  getWeeklyNutritionSummaryInternal,
-  ["weekly-nutrition"],
-  { revalidate: 120 }
-);
 
 // ─── Recent Foods (for Quick Add "Recent" tab) ───────────────────
 export async function getRecentFoods(): Promise<{ foodName: string; calories: number; protein: number; carbs: number; fats: number; fiber: number }[]> {
@@ -261,18 +261,19 @@ export async function getRecentFoods(): Promise<{ foodName: string; calories: nu
 }
 
 // ─── Nutrition Report (for /reports page) ────────────────────────
-const getNutritionReportInternal = async (days: 7 | 30 = 7, timezone: string = "Asia/Kolkata") => {
+export const getNutritionReport = async (days: 7 | 30 = 7, timezone: string = "Asia/Kolkata") => {
+  if (days !== 7 && days !== 30) throw new Error("Invalid report period");
   try {
     const user = await getUserProfile();
     if (!user) return null;
 
     const startOfToday = getStartOfDayInTimezone(timezone);
-    const startDate = new Date(startOfToday.getTime() - days * 24 * 60 * 60 * 1000);
+    const startDate = startOfDate(shiftDate(dateKey(startOfToday, timezone), -(days - 1)), timezone);
 
     const meals = await prisma.mealLog.findMany({
       where: {
         userId: user.id,
-        date: { gte: startDate },
+        date: { gte: startDate, lt: getEndOfDayInTimezone(timezone) },
         planned: false,
       },
       orderBy: { date: "asc" },
@@ -301,14 +302,13 @@ const getNutritionReportInternal = async (days: 7 | 30 = 7, timezone: string = "
 
     // Build daily array
     const dailyData = Array.from({ length: days }, (_, i) => {
-      const date = new Date(startOfToday.getTime() - (days - 1 - i) * 24 * 60 * 60 * 1000);
-      const key = date.toLocaleDateString("en-CA", { timeZone: timezone });
+      const key = shiftDate(dateKey(startOfToday, timezone), i - days + 1);
       const data = dailyMap.get(key);
       const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       return {
         date: key,
-        day: dayNames[new Date(key + "T12:00:00").getDay()],
-        shortDate: `${new Date(key + "T12:00:00").getDate()}/${new Date(key + "T12:00:00").getMonth() + 1}`,
+        day: dayNames[new Date(key + "T12:00:00Z").getUTCDay()],
+        shortDate: `${Number(key.slice(8,10))}/${Number(key.slice(5,7))}`,
         calories: data?.calories || 0,
         protein: Math.round(data?.protein || 0),
         carbs: Math.round(data?.carbs || 0),
@@ -349,8 +349,17 @@ const getNutritionReportInternal = async (days: 7 | 30 = 7, timezone: string = "
   }
 };
 
-export const getNutritionReport = unstable_cache(
-  getNutritionReportInternal,
-  ["nutrition-report-long"],
-  { revalidate: 120 }
-);
+
+
+export async function updateMeal(id: string, fd: FormData) {
+  const user = await getUserProfile();
+  if (!user) throw new Error('Unauthorized');
+  const planned = fd.get('planned') === 'true';
+  await prisma.mealLog.update({where:{id,userId:user.id},data:{
+    foodName:textValue(fd.get('foodName'),'Food name',200),date:logDate(fd.get('date'),planned),planned,
+    calories:numeric(fd.get('calories'),'Calories',0,20000,true),protein:numeric(fd.get('protein'),'Protein',0,2000),carbs:numeric(fd.get('carbs'),'Carbs',0,3000),fats:numeric(fd.get('fats'),'Fats',0,2000),fiber:numeric(fd.get('fiber')||'0','Fiber',0,500)
+  }});
+  await checkAndUpdateStreak(user.id);
+  for (const path of ['/', '/diet', '/reports', '/progress']) revalidatePath(path);
+  return {success:true};
+}

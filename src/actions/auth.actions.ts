@@ -10,17 +10,19 @@ export async function isDbAvailable(): Promise<boolean> {
 }
 
 export async function registerUser(formData: FormData) {
-  const name = formData.get("name") as string;
-  const email = (formData.get("email") as string)?.toLowerCase().trim();
-  const password = formData.get("password") as string;
+  const name = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").toLowerCase().trim();
+  const password = String(formData.get("password") || "");
   const confirmPassword = formData.get("confirmPassword") as string;
 
   if (!name || !email || !password) {
     return { error: "All fields are required." };
   }
 
-  if (password.length < 6) {
-    return { error: "Password must be at least 6 characters." };
+  if (name.length > 120 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return {error:"Enter a valid name and email address."};
+
+  if (password.length < 8 || new TextEncoder().encode(password).length > 72) {
+    return { error: "Password must be 8–72 bytes long." };
   }
 
   if (password !== confirmPassword) {
@@ -37,13 +39,9 @@ export async function registerUser(formData: FormData) {
   // DB mode
   let shouldRedirect = false;
 
-  // Check if email already exists
-  const existing = await prisma!.user.findUnique({ where: { email } });
-  if (existing) {
-    return { error: "An account with this email already exists." };
-  }
-
   try {
+    const existing = await prisma.user.findUnique({where:{email}});
+    if(existing)return {error:"An account with this email already exists."};
     const passwordHash = await hashPassword(password);
 
     const user = await prisma!.user.create({
@@ -65,7 +63,7 @@ export async function registerUser(formData: FormData) {
     shouldRedirect = true;
   } catch (err: any) {
     console.error("[ApexFit] Registration error:", err?.message || err);
-    return { error: `Registration failed: ${err?.message || "Unknown error"}` };
+    return { error: "Registration could not be completed. Please try again." };
   }
 
   if (shouldRedirect) {
@@ -74,10 +72,10 @@ export async function registerUser(formData: FormData) {
 }
 
 export async function loginUser(formData: FormData) {
-  const email = (formData.get("email") as string)?.toLowerCase().trim();
-  const password = formData.get("password") as string;
+  const email = String(formData.get("email") || "").toLowerCase().trim();
+  const password = String(formData.get("password") || "");
 
-  if (!email || !password) {
+  if (!email || !password || email.length > 254 || password.length > 1024) {
     return { error: "Email and password are required." };
   }
 
@@ -105,7 +103,7 @@ export async function loginUser(formData: FormData) {
     shouldRedirect = true;
   } catch (err: any) {
     console.error("[ApexFit] Login error:", err?.message || err);
-    return { error: `Login failed: ${err?.message || "Unknown error"}` };
+    return { error: "Sign-in is temporarily unavailable. Please try again." };
   }
 
   if (shouldRedirect) {
@@ -117,3 +115,4 @@ export async function logoutUser() {
   await destroySession();
   redirect("/login");
 }
+

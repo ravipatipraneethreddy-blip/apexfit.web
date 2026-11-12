@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
+import { numeric, choice, csvCell } from "@/lib/validation";
+import { getUserTimezone, dateKey, shiftDate } from "@/lib/timezone";
 import { calculateTDEE } from "@/lib/tdee";
 
 // Helper: test if DB is actually reachable
@@ -18,18 +20,18 @@ export async function onboardUser(formData: FormData) {
   const heightStr = formData.get("height") as string;
   const weightStr = formData.get("weight") as string;
   const targetWeightStr = formData.get("targetWeight") as string;
-  const goal = formData.get("goal") as string;
-  const gender = formData.get("gender") as string;
+  const goal = choice(formData.get("goal"), ["FAT_LOSS", "MUSCLE_GAIN", "RECOMP"], "Goal");
+  const gender = choice(formData.get("gender") || "MALE", ["MALE", "FEMALE"], "Gender");
   const dietPreference = formData.get("dietPreference") as string;
-  const activityLevel = formData.get("activityLevel") as string;
+  const activityLevel = choice(formData.get("activityLevel"), ["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"], "Activity");
 
   if (!ageStr || !heightStr || !weightStr || !goal || !dietPreference || !activityLevel) {
     throw new Error("Missing required fields for onboarding.");
   }
 
-  const age = parseInt(ageStr, 10);
-  const height = parseFloat(heightStr);
-  const weight = parseFloat(weightStr);
+  const age = numeric(ageStr, "Age", 13, 120, true);
+  const height = numeric(heightStr, "Height", 100, 250);
+  const weight = numeric(weightStr, "Weight", 20, 500);
 
   // Calculate TDEE
   const tdee = calculateTDEE({
@@ -58,7 +60,7 @@ export async function onboardUser(formData: FormData) {
       height,
       weight,
       gender: gender || "MALE",
-      targetWeight: targetWeightStr ? parseFloat(targetWeightStr) : null,
+      targetWeight: targetWeightStr ? numeric(targetWeightStr, "Target weight", 20, 500) : null,
       goal,
       dietPreference,
       activityLevel,
@@ -79,10 +81,10 @@ export async function updateUserProfile(formData: FormData) {
   const name = formData.get("name") as string;
   const weightStr = formData.get("weight") as string;
   const targetWeightStr = formData.get("targetWeight") as string;
-  const goal = formData.get("goal") as string;
-  const gender = formData.get("gender") as string;
+  const goal = choice(formData.get("goal"), ["FAT_LOSS", "MUSCLE_GAIN", "RECOMP"], "Goal");
+  const gender = choice(formData.get("gender") || "MALE", ["MALE", "FEMALE"], "Gender");
   const dietPreference = formData.get("dietPreference") as string;
-  const activityLevel = formData.get("activityLevel") as string;
+  const activityLevel = choice(formData.get("activityLevel"), ["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"], "Activity");
 
   const dbReady = await isDbAvailable();
 
@@ -97,7 +99,7 @@ export async function updateUserProfile(formData: FormData) {
     const currentUser = await prisma!.user.findUnique({ where: { id: session.userId } });
     if (!currentUser) throw new Error("User not found");
 
-    const updatedWeight = weightStr ? parseFloat(weightStr) : currentUser.weight;
+    const updatedWeight = weightStr ? numeric(weightStr, "Weight", 20, 500) : currentUser.weight;
     const updatedGoal = goal || currentUser.goal;
     const updatedActivity = activityLevel || currentUser.activityLevel;
     const updatedGender = gender || currentUser.gender || "MALE";
@@ -117,7 +119,7 @@ export async function updateUserProfile(formData: FormData) {
       data: {
         ...(name && { name }),
         ...(weightStr && { weight: updatedWeight }),
-        ...(targetWeightStr && { targetWeight: parseFloat(targetWeightStr) }),
+        targetWeight: targetWeightStr ? numeric(targetWeightStr, "Target weight", 20, 500) : null,
         ...(goal && { goal: updatedGoal }),
         ...(gender && { gender: updatedGender }),
         ...(dietPreference && { dietPreference }),
@@ -133,6 +135,7 @@ export async function updateUserProfile(formData: FormData) {
     revalidatePath("/profile");
   } catch (err) {
     console.error("[ApexFit] Failed to update profile:", err);
+    throw new Error("Your profile was not saved. Please try again.");
   }
 
   return { success: true };
@@ -151,10 +154,10 @@ export const getUserProfile = cache(async () => {
     const session = await getSession();
     if (!session) return null;
 
-    const user = await prisma!.user.findUnique({
+    return prisma.user.findUnique({
       where: { id: session.userId },
+      select: { id:true, email:true, name:true, age:true, height:true, weight:true, gender:true, targetWeight:true, goal:true, dietPreference:true, activityLevel:true, streakDays:true, targetCalories:true, targetProtein:true, targetCarbs:true, targetFats:true, createdAt:true }
     });
-    return user || null;
   } catch {
     return null;
   }
@@ -191,6 +194,7 @@ export async function getUserStats() {
 }
 
 export async function getLeaderboard() {
+  if (!await getSession()) return [];
   const dbReady = await isDbAvailable();
   
   if (!dbReady) {
@@ -221,52 +225,23 @@ export async function getLeaderboard() {
 }
 
 export async function checkAndUpdateStreak(userId: string) {
+  const session = await getSession();
+  if (!session || session.userId !== userId) throw new Error("Unauthorized");
   const dbReady = await isDbAvailable();
   if (!dbReady) return 1;
 
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+    const timezone = await getUserTimezone();
+    const now = new Date();
     const [meals, workouts] = await Promise.all([
-      prisma!.mealLog.findMany({ where: { userId, date: { gte: thirtyDaysAgo } }, select: { date: true } }),
-      prisma!.workoutLog.findMany({ where: { userId, date: { gte: thirtyDaysAgo } }, select: { date: true } })
+      prisma.mealLog.findMany({ where: { userId, planned: false, date: { lte: now } }, select: { date: true } }),
+      prisma.workoutLog.findMany({ where: { userId, date: { lte: now } }, select: { date: true } })
     ]);
-
-    const allDates = [...meals, ...workouts].map(item => {
-      const d = new Date(item.date);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    });
-
-    if (allDates.length === 0) {
-      await prisma!.user.update({ where: { id: userId }, data: { streakDays: 0 } });
-      return 0;
-    }
-
-    const uniqueDates = Array.from(new Set(allDates)).sort((a, b) => b - a);
-
+    const dates = new Set([...meals, ...workouts].map(x => dateKey(x.date, timezone)));
+    let day = dateKey(now, timezone);
+    if (!dates.has(day)) day = shiftDate(day, -1);
     let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayTime = today.getTime();
-
-    if (uniqueDates[0] < todayTime - 86400000) {
-      await prisma!.user.update({ where: { id: userId }, data: { streakDays: 0 } });
-      return 0;
-    }
-
-    let currentCheckTime = uniqueDates[0] === todayTime ? todayTime : todayTime - 86400000;
-
-    for (const d of uniqueDates) {
-      if (d === currentCheckTime) {
-        streak++;
-        currentCheckTime -= 86400000;
-      } else if (d < currentCheckTime) {
-        break;
-      }
-    }
-
+    while (dates.has(day)) { streak++; day = shiftDate(day, -1); }
     await prisma!.user.update({ where: { id: userId }, data: { streakDays: streak } });
     return streak;
   } catch (err) {
@@ -295,13 +270,13 @@ export async function exportUserData() {
 
   const mealsCsv = ["Date,Food,Calories,Protein,Carbs,Fats,Fiber,Planned"];
   user.meals.forEach((m: any) => {
-    mealsCsv.push(`${m.date.toISOString()},"${m.foodName}",${m.calories},${m.protein},${m.carbs},${m.fats},${m.fiber || 0},${m.planned}`);
+    mealsCsv.push(`${m.date.toISOString()},${csvCell(m.foodName)},${m.calories},${m.protein},${m.carbs},${m.fats},${m.fiber || 0},${m.planned}`);
   });
 
   const workoutsCsv = ["Date,Workout,Exercise,Sets,Reps,Weight"];
   user.workouts.forEach(w => {
     w.exercises.forEach(ex => {
-      workoutsCsv.push(`${w.date.toISOString()},"${w.name}","${ex.name}",${ex.sets},${ex.reps},${ex.weight}`);
+      workoutsCsv.push(`${w.date.toISOString()},${csvCell(w.name)},${csvCell(ex.name)},${ex.sets},${ex.reps},${ex.weight}`);
     });
   });
 
@@ -313,3 +288,4 @@ export async function exportUserData() {
     }
   };
 }
+

@@ -160,3 +160,6 @@ body {
 .step-pulse {
   animation: step-pulse 0.3s ease-out;
 }
+
+
+:root { --font-inter: Arial, Helvetica, sans-serif; --font-code: ui-monospace, SFMono-Regular, Menlo, monospace; }

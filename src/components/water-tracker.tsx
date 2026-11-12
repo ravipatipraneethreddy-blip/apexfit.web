@@ -15,6 +15,8 @@ export default function WaterTracker({ initialMl = 0 }: { initialMl?: number }) 
   const [isLogging, setIsLogging] = useState(false);
   const [lastAdded, setLastAdded] = useState<number | null>(null);
 
+  useEffect(() => setTotalMl(initialMl), [initialMl]);
+
   // Customization State
   const [isEditing, setIsEditing] = useState(false);
   const [goalMl, setGoalMl] = useState(DEFAULT_GOAL_ML);
@@ -59,11 +61,13 @@ export default function WaterTracker({ initialMl = 0 }: { initialMl?: number }) 
   const goalLiters = (goalMl / 1000).toFixed(1);
 
   const handleAdd = async (ml: number) => {
+    if (isLogging) return;
     setIsLogging(true);
     setLastAdded(ml);
     setTotalMl((prev) => prev + ml);
     try {
       await logWater(ml);
+      router.refresh();
     } catch (e) {
       console.error(e);
       setTotalMl((prev) => prev - ml);
@@ -195,3 +199,4 @@ export default function WaterTracker({ initialMl = 0 }: { initialMl?: number }) 
     </motion.div>
   );
 }
+
