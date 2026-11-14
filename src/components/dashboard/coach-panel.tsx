@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { buildCoach, DEFAULT_SETTINGS, normaliseSettings, type CoachInput, type CoachSettings, type Recovery } from '@/lib/coach';
 import { dateKey } from '@/lib/dates';
 import { generateDailyMealPlan } from '@/actions/ai.actions';
 const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const inputClass='w-full bg-background border border-border rounded-lg p-2 text-sm mt-1';
-export function CoachPanel({data}:{data:CoachInput}) {
+export function CoachPanel({data,compact=false}:{data:CoachInput;compact?:boolean}) {
   const router=useRouter(),key='apexfit-coach:'+data.user.id;
   const [settings,setSettings]=useState<CoachSettings>(DEFAULT_SETTINGS),[recovery,setRecovery]=useState<Recovery|undefined>();
   const [ready,setReady]=useState(false),[expanded,setExpanded]=useState(false),[error,setError]=useState('');
@@ -31,6 +32,27 @@ export function CoachPanel({data}:{data:CoachInput}) {
   function change(next:Partial<CoachSettings>){const value=normaliseSettings({...settings,...next});setSettings(value);try{localStorage.setItem(key,JSON.stringify(value));setError('');}catch{setError('Settings could not be saved on this device.');}}
   function checkIn(){const r={...form,date:dateKey(now,data.timezone)};setRecovery(r);try{localStorage.setItem(key+':recovery',JSON.stringify(r));}catch{setError('Check-in could not be saved on this device.');}}
   function start(){try{localStorage.setItem('apexfit-coach-session:'+data.user.id,JSON.stringify({name:c.next?.session,exercises:c.prescription,date:c.next?.date}));router.push('/workout?template=Recommended');}catch{setError('Could not prepare the session. Please free device storage and retry.');}}
+  if(compact) {
+    const today=c.plan[0];
+    const canStart=ready && today?.kind==='train' && c.next?.date===c.today && !(recovery?.date===c.today && recovery.pain);
+    const nextDate=c.next ? new Date(c.next.date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}) : '';
+    const title=!ready?'Loading your programme…':today?.kind==='done'?'Workout complete':today?.kind==='train'?today.session:today?.session==='Recovery'?'Recovery day':'Rest day';
+    const subtitle=!ready?'':today?.kind==='train'
+      ? `${c.prescription.length} exercises · ${settings.sessionMinutes} min`
+      : c.next ? `Next: ${c.next.session} · ${nextDate}` : 'Review your programme in your coach.';
+    return <section aria-labelledby="today-workout-title" className="glass-panel rounded-2xl p-5 mb-6 border border-primary/25">
+      <p className="text-xs font-medium uppercase tracking-widest text-primary">Today</p>
+      <h2 id="today-workout-title" className="text-xl font-bold mt-1">{title}</h2>
+      {subtitle&&<p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+      {ready&&today?.session==='Recovery'&&<p className="text-sm text-amber-300 mt-2">Take time to recover. Review your check-in before training.</p>}
+      {ready&&today?.kind==='train'&&<p className="text-xs text-muted-foreground mt-2">{recovery?.date===c.today?'Recovery check-in saved.':'Check how you feel in your coach before training.'}</p>}
+      {error&&<p role="alert" className="text-sm text-amber-400 mt-2">{error}</p>}
+      <div className="flex flex-wrap items-center gap-3 mt-4">
+        {canStart&&<button onClick={start} className="rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium">Start workout</button>}
+        <Link href="/coach" className="text-sm font-medium rounded-xl px-3 py-2.5 bg-secondary hover:bg-secondary/70">View coach</Link>
+      </div>
+    </section>;
+  }
   return <section aria-labelledby="coach-title" className="glass-panel rounded-2xl p-5 md:p-6 mb-8 border border-primary/30">
     <div className="flex justify-between items-start gap-3"><div><p className="text-xs uppercase tracking-widest text-primary">Your personal coach</p><h2 id="coach-title" className="text-xl font-bold mt-1">{ready?c.next?`Next: ${c.next.session}`:'Recovery comes first':'Loading your programme…'}</h2><p className="text-sm text-muted-foreground mt-2">{c.insight}</p></div><button className="text-sm underline p-2" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded}>Plan settings</button></div>
     {error&&<p role="alert" className="text-amber-400 mt-3">{error}</p>}
